@@ -68,7 +68,7 @@ int main(int argc, char **argv){
 		fftw_destroy_plan(plan);
 		fftw_cleanup();
 		// one fft block end
-		cout << "FFT accuracy(Hz) : " << float(samp_freq/2) / (fft_size/2) << endl;
+		cout << "FFT accuracy(Hz) : " << float(samp_freq/2.0f) / (fft_size/2.0f) << endl;
 		for (int i=0;i<fft_size/2;i++){
 			iter_global += 1;
 			fft_data.x = i * float(samp_freq/2) / (fft_size/2);
