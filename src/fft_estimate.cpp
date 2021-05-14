@@ -37,9 +37,11 @@ void imuCallback(sensor_msgs::Imu imu_data)
 	queue_things(y_queue,imu_data.angular_velocity.y);
 }
 void convert_que_to_array(queue<float> dupl,fftw_complex *fftw_in){
-	for(int i=0;i < dupl.size();i++){
+	int fft_size = dupl.size(); // using dupl.size() multiple times was causing for loop to use garbage i values.
+	for(int i=0;i < fft_size;i++){
 		fftw_in[i][REAL] = dupl.front();
 		fftw_in[i][IMAG] = 0.0;
+		dupl.pop();
 	}
 
 }
@@ -58,19 +60,19 @@ int main(int argc, char **argv){
 	while(ros::ok()){
 		// one fft block begin
 		int fft_size = x_queue.size();
-		fftw_complex in_fftw[fft_size];
-		fftw_complex out_fftw[fft_size];
+		fftw_complex in_fftw[fft_size] = {};
+		fftw_complex out_fftw[fft_size] = {};
 		convert_que_to_array(x_queue, in_fftw);
 		fftw_plan plan = fftw_plan_dft_1d(fft_size,in_fftw,out_fftw,FFTW_FORWARD, FFTW_ESTIMATE);
 		fftw_execute(plan);
 		fftw_destroy_plan(plan);
 		fftw_cleanup();
 		// one fft block end
-		cout << "FFT = " << endl;
+		cout << "FFT accuracy(Hz) : " << float(samp_freq/2) / (fft_size/2) << endl;
 		for (int i=0;i<fft_size/2;i++){
 			iter_global += 1;
 			fft_data.x = i * float(samp_freq/2) / (fft_size/2);
-			fft_data.y = sqrt(pow(out_fftw[i][REAL],2) + pow(out_fftw[i][IMAG],2))*float(2/fft_size);
+			fft_data.y = 2.0f*sqrt(pow(out_fftw[i][REAL],2) + pow(out_fftw[i][IMAG],2))/float(fft_size);
 			// fft_transform.publish(fft_data);
 			fft_output_capt << iter_global << ";" << fft_data.x << ";" << fft_data.y <<'\n';
 			// ros::Duration(0.01).sleep();
