@@ -73,8 +73,9 @@ int main(int argc, char **argv){
 			iter_global += 1;
 			fft_data.x = i * float(samp_freq/2) / (fft_size/2);
 			fft_data.y = 2.0f*sqrt(pow(out_fftw[i][REAL],2) + pow(out_fftw[i][IMAG],2))/float(fft_size);
+			fft_data.z = atan2(out_fftw[i][IMAG],out_fftw[i][REAL]);
 			// fft_transform.publish(fft_data);
-			fft_output_capt << iter_global << ";" << fft_data.x << ";" << fft_data.y <<'\n';
+			fft_output_capt << iter_global << ";" << fft_data.x << ";" << fft_data.y << ";" << fft_data.z <<'\n';
 			// ros::Duration(0.01).sleep();
 		}
 		if(ros::isShuttingDown()){
