@@ -135,6 +135,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(fft_node src/fft_estimate.cpp)
 add_executable(wave_prediction_node src/wave_prediction.cpp)
+add_executable(wave_generation_node src/wave_generator.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -154,6 +155,9 @@ target_link_libraries(fft_node
   ${fftw3_LIBRARIES}
 )
 target_link_libraries(wave_prediction_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(wave_generation_node
   ${catkin_LIBRARIES}
 )
 

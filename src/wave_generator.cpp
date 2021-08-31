@@ -17,17 +17,23 @@ using namespace std;
 
 // const int max_queue = 10000;
 // const int samp_freq = 83;
-const int wave_components = 20;
+const int wave_components = 10;
 // queue<float> x_queue;
 // queue<float> y_queue;
 uint64_t iter_global = 0;
 // fftw_complex in_x[N];
 // fftw_complex in_y[N];
-// sensor_msgs::Imu imu_data{};
+sensor_msgs::Imu imu_msg{};
 // geometry_msgs::Vector3 fft_data{};
-usv_estiplan::Fftoutput fft_msg{};
+// usv_estiplan::Fftoutput fft_msg{};
 double msg_time;
-std_msgs::Float64 wave_msg;
+// std_msgs::Float64 wave_msg;
+double amplitude[wave_components] = {0.1,  0.2,  0.15, 0.7,  0.65,
+                                     0.35, 0.23, 0.5,  0.05, 0.85};
+double frequency[wave_components] = {0.1,  0.4,  0.25, 0.31, 0.05,
+                                     0.35, 0.13, 0.04, 0.48, 0.6};
+double phase[wave_components] = {0.1, 0.2, 0.3, 0.4, 0.5,
+                                 0.6, 0.7, 0.8, 0.9, 1.0};
 // void queue_things(queue<float> &queue_in,float push_in){
 // 	while(queue_in.size() > max_queue){
 // 		queue_in.pop();
@@ -35,10 +41,11 @@ std_msgs::Float64 wave_msg;
 // 		queue_in.push(push_in);
 // }
 
-void fftCallback(usv_estiplan::Fftoutput in_msg) {
-  fft_msg = in_msg;
-  msg_time = ros::Time::now().toNSec();
-}
+// void fftCallback(usv_estiplan::Fftoutput in_msg)
+// {
+// 	fft_msg = in_msg;
+// 	msg_time = ros::Time::now().toNSec();
+// }
 // void convert_que_to_array(queue<float> dupl,fftw_complex *fftw_in){
 // 	int fft_size = dupl.size(); // using dupl.size() multiple times was
 // causing for loop to use garbage i values. 	for(int i=0;i < fft_size;i++){
@@ -51,11 +58,11 @@ void fftCallback(usv_estiplan::Fftoutput in_msg) {
 
 int main(int argc, char **argv) {
 
-  ros::init(argc, argv, "wave_prediction");
+  ros::init(argc, argv, "wave_generator");
   ros::NodeHandle estiplan;
-  ros::Subscriber sub = estiplan.subscribe("/fft_output", 1000, fftCallback);
-  ros::Publisher wave_predictor =
-      estiplan.advertise<std_msgs::Float64>("/wave_prediction", 1000);
+  // ros::Subscriber sub = estiplan.subscribe("/fft_output", 1000, fftCallback);
+  ros::Publisher wave_generator =
+      estiplan.advertise<sensor_msgs::Imu>("/wamv/imu", 1000);
   // ros::Publisher fft_transform =
   // estiplan.advertise<geometry_msgs::Vector3>("/fft_output/y", 1000);
   ros::Rate loop_rate(100.0);
@@ -64,12 +71,11 @@ int main(int argc, char **argv) {
   while (ros::ok()) {
     wave_output = 0;
     for (size_t i = 0; i < wave_components; i++) {
-      time_elap = (ros::Time::now().toNSec() - msg_time) * 1e-9;
+      time_elap = ros::Time::now().toNSec() * 1e-9;
       wave_output +=
-          fft_msg.amplitude[i] *
-          sin((fft_msg.frequency[i] * 2 * M_PI * time_elap) + fft_msg.phase[i]);
+          amplitude[i] * sin((frequency[i] * 2 * M_PI * time_elap) + phase[i]);
     }
-    wave_msg.data = wave_output;
+    imu_msg.angular_velocity.x = wave_output;
 
     // ofstream fft_output_capt;
     // fft_output_capt.open("fft_data.csv");
@@ -98,9 +104,10 @@ int main(int argc, char **argv) {
     // double y_output[wave_components][3];
 
     // cout << "FFT accuracy(Hz) : " << float(samp_freq/2.0f) / (fft_size/2.0f)
-    // << endl; int filler = 0; for (int i=0;i<fft_size/2;i++){ 	iter_global +=
-    // 1; 	fft_data.x = i * float(samp_freq/2) / (fft_size/2); 	fft_data.y
-    // = 2.0f*sqrt(pow(out_fftw_x[i][REAL],2) +
+    // << endl; int filler = 0; for (int i=0;i<fft_size/2;i++){
+    // iter_global
+    // += 1; 	fft_data.x = i * float(samp_freq/2) / (fft_size/2);
+    // fft_data.y = 2.0f*sqrt(pow(out_fftw_x[i][REAL],2) +
     // pow(out_fftw_x[i][IMAG],2))/float(fft_size); 	fft_data.z =
     // atan2(out_fftw_x[i][IMAG],out_fftw_x[i][REAL]); 	if(fft_data.y > 0.02 &&
     // filler < 10){ 		fft_msg.frequency[filler] = fft_data.x;
@@ -112,7 +119,7 @@ int main(int argc, char **argv) {
     // 	}
     // ros::Duration(0.01).sleep();
 
-    wave_predictor.publish(wave_msg);
+    wave_generator.publish(imu_msg);
     if (ros::isShuttingDown()) {
       // fft_output_capt.close();
     }
