@@ -1,0 +1,28 @@
+name: fake_wave
+
+root: ./
+
+startup_window: fake_wave
+
+windows:
+
+  - fake_wave:
+
+      layout: tiled
+
+      panes:
+
+        - roslaunch usv_estiplan fake_wave.launch
+  # - recorder:
+  #      layout: tiled
+
+  #      panes:
+  #       - rosbag record -a -O /home/octo/Documents/lmpc_bags/test.bag
+
+  # - visualization:
+
+  #     layout: tiled
+
+  #     panes:
+
+  #       - sleep 15; 

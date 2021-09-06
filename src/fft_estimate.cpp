@@ -103,13 +103,22 @@ int main(int argc, char **argv) {
           2.0f *
           sqrt(pow(out_fftw_x[i][REAL], 2) + pow(out_fftw_x[i][IMAG], 2)) /
           float(fft_size);
+      if (i == 0) {
+        wave_vec[i][1] = wave_vec[i][1] / 2;
+      }
       wave_vec[i][2] = atan2(out_fftw_x[i][IMAG], out_fftw_x[i][REAL]);
     }
     sort(wave_vec.begin(), wave_vec.end(), sortcol);
     for (size_t i = 0; i < wave_components; i++) {
-      fft_msg.frequency[i] = wave_vec[i][0];
-      fft_msg.amplitude[i] = wave_vec[i][1];
-      fft_msg.phase[i] = wave_vec[i][2];
+      if (wave_vec[i][1] > ((1.0 / 50.0) * wave_vec[0][1])) {
+        fft_msg.frequency[i] = wave_vec[i][0];
+        fft_msg.amplitude[i] = wave_vec[i][1];
+        fft_msg.phase[i] = wave_vec[i][2];
+      } else {
+        fft_msg.frequency[i] = 0.0;
+        fft_msg.amplitude[i] = 0.0;
+        fft_msg.phase[i] = 0.0;
+      }
     }
     // ros::Duration(0.01).sleep();
     fft_transform.publish(fft_msg);

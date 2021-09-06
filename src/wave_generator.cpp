@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <queue>
+#include <random>
 #include <sstream>
 
 using namespace std;
@@ -18,6 +19,7 @@ using namespace std;
 // const int max_queue = 10000;
 // const int samp_freq = 83;
 const int wave_components = 10;
+const float CONSTANT_OFFSET = 0.2;
 // queue<float> x_queue;
 // queue<float> y_queue;
 uint64_t iter_global = 0;
@@ -75,7 +77,10 @@ int main(int argc, char **argv) {
       wave_output +=
           amplitude[i] * sin((frequency[i] * 2 * M_PI * time_elap) + phase[i]);
     }
-    imu_msg.angular_velocity.x = wave_output;
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_real_distribution<double> dist(-0.3, 0.3);
+    imu_msg.angular_velocity.x = wave_output + dist(mt) + CONSTANT_OFFSET;
 
     // ofstream fft_output_capt;
     // fft_output_capt.open("fft_data.csv");

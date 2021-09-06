@@ -50,10 +50,13 @@ Eigen::VectorXd r(1);
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
     q_dash;
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)> q =
-    Eigen::MatrixXd::Identity(2 * (WAVE_COMPONENTS + 1),
-                              2 * (WAVE_COMPONENTS + 1)) *
-    SAMPLE_TIME;
+    Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
 bool first_start = true;
+bool parity_matrix[2][WAVE_COMPONENTS];
+// row-0 is last, row-1 is current
+// true is present, false is notpresent
+
+usv_estiplan::Fftoutput last_fft_msg{};
 
 void ImuCallback(sensor_msgs::Imu imu_data) {
   w_k(0) = imu_data.angular_velocity.x;
@@ -62,29 +65,58 @@ void ImuCallback(sensor_msgs::Imu imu_data) {
 void FftCallback(usv_estiplan::Fftoutput in_msg) {
   fft_msg = in_msg;
   first_start = false;
+  // reset parity matrix
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-    // changing A matrices
-    a_i(1) = -pow(2 * M_PI * fft_msg.frequency[i], 2);
-    a_t.block(2 * i, 2 * i, 2, 2) = a_i;
-    // changing X matrices
-    x_i(0) = fft_msg.amplitude[i] * sin(fft_msg.phase[i]);
-    x_i(1) = 2 * M_PI * fft_msg.amplitude[i] * fft_msg.frequency[i] *
-             cos(fft_msg.phase[i]);
-    x_t.block(2 * i, 0, 2, 1) = x_i;
+    parity_matrix[0][i] = false;
+    parity_matrix[1][i] = false;
+  }
+
+  // check which components already exist
+  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+    for (size_t j = 0; j < WAVE_COMPONENTS; j++) {
+      if (fft_msg.frequency[i] = last_fft_msg.frequency[j]) {
+        parity_matrix[0][j] = true; // row-0 for last_msg
+        parity_matrix[1][i] = true; // row-1 for new_msg
+      }
+    }
+  }
+  size_t spot_avlb = 0;
+  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+    if (!parity_matrix[0][i]) {
+      while (parity_matrix[1][spot_avlb] && spot_avlb < WAVE_COMPONENTS) {
+        spot_avlb += 1;
+      }
+      // changing A matrices
+      a_i(1) = -pow(2 * M_PI * fft_msg.frequency[spot_avlb], 2);
+      a_t.block(2 * i, 2 * i, 2, 2) = a_i;
+      // changing X matrices
+      x_i(0) = fft_msg.amplitude[spot_avlb] * sin(fft_msg.phase[spot_avlb]);
+      x_i(1) = 2 * M_PI * fft_msg.amplitude[spot_avlb] *
+               fft_msg.frequency[spot_avlb] * cos(fft_msg.phase[spot_avlb]);
+      x_t.block(2 * i, 0, 2, 1) = x_i;
+      spot_avlb += 1;
+    }
   }
   // updating Phi
   phi = (a_t * SAMPLE_TIME).exp();
   msg_time = ros::Time::now().toNSec();
+  last_fft_msg = in_msg;
 }
 
 int main(int argc, char **argv) {
 
-  r(0) = 0.01;
+  r(0) = 0.11;
   x_t(2 * WAVE_COMPONENTS) = 0.0;
   x_t(2 * WAVE_COMPONENTS + 1) = 0.0;
   a_i(0) = 0.0;
   a_i(2) = 1.0;
   a_i(3) = 0.0;
+  q(0, 0) = 0.1;
+  q(1, 1) = 0.1;
+  q(2, 2) = 0.05;
+  q(3, 3) = 0.05;
+  q(4, 4) = 0.05;
+  q(5, 5) = 0.05;
   for (size_t i = 0; i < WAVE_COMPONENTS + 1; i++) {
     c_t << 1.0, 0.0;
   }
