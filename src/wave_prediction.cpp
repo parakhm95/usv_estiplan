@@ -23,6 +23,7 @@ uint64_t iter_global = 0;
 usv_estiplan::Fftoutput fft_msg{};
 double msg_time;
 std_msgs::Float64 wave_msg;
+std_msgs::Float64 wave_future_msg;
 Eigen::VectorXd w_k_hat(1);
 Eigen::VectorXd w_k(1);
 Eigen::Vector2d x_i;                                       // X(i,0) single mode
@@ -53,16 +54,31 @@ Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)> q =
     Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
 bool first_start = true;
 bool parity_matrix[2][WAVE_COMPONENTS];
+double freq_components[WAVE_COMPONENTS];
+
+Eigen::VectorXd phase(1);
+Eigen::VectorXd freq(1);
+Eigen::VectorXd amplitude(1);
+std::ofstream csv_debug;
+
 // row-0 is last, row-1 is current
 // true is present, false is notpresent
-
-usv_estiplan::Fftoutput last_fft_msg{};
 
 void ImuCallback(sensor_msgs::Imu imu_data) {
   w_k(0) = imu_data.angular_velocity.x;
 }
 
 void FftCallback(usv_estiplan::Fftoutput in_msg) {
+  if (first_start) {
+    csv_debug.open(
+        "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv");
+    csv_debug << "freq_mat;parity0;cur_msg;parity1;";
+    csv_debug << "\n";
+  } else {
+    csv_debug.open(
+        "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv",
+        std::ios::app);
+  }
   fft_msg = in_msg;
   first_start = false;
   // reset parity matrix
@@ -74,7 +90,9 @@ void FftCallback(usv_estiplan::Fftoutput in_msg) {
   // check which components already exist
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
     for (size_t j = 0; j < WAVE_COMPONENTS; j++) {
-      if (fft_msg.frequency[i] = last_fft_msg.frequency[j]) {
+      if (trunc(1000. * fft_msg.frequency[i]) ==
+              trunc(1000. * freq_components[j]) &&
+          (parity_matrix[0][j] != true) && (parity_matrix[1][i] != true)) {
         parity_matrix[0][j] = true; // row-0 for last_msg
         parity_matrix[1][i] = true; // row-1 for new_msg
       }
@@ -86,6 +104,7 @@ void FftCallback(usv_estiplan::Fftoutput in_msg) {
       while (parity_matrix[1][spot_avlb] && spot_avlb < WAVE_COMPONENTS) {
         spot_avlb += 1;
       }
+      freq_components[i] = fft_msg.frequency[spot_avlb];
       // changing A matrices
       a_i(1) = -pow(2 * M_PI * fft_msg.frequency[spot_avlb], 2);
       a_t.block(2 * i, 2 * i, 2, 2) = a_i;
@@ -100,11 +119,15 @@ void FftCallback(usv_estiplan::Fftoutput in_msg) {
   // updating Phi
   phi = (a_t * SAMPLE_TIME).exp();
   msg_time = ros::Time::now().toNSec();
-  last_fft_msg = in_msg;
+  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+    csv_debug << freq_components[i] << ";" << parity_matrix[0][i] << ";"
+              << in_msg.frequency[i] << ";" << parity_matrix[1][i] << ";"
+              << "\n";
+  }
+  csv_debug.close();
 }
 
 int main(int argc, char **argv) {
-
   r(0) = 0.11;
   x_t(2 * WAVE_COMPONENTS) = 0.0;
   x_t(2 * WAVE_COMPONENTS + 1) = 0.0;
@@ -126,6 +149,8 @@ int main(int argc, char **argv) {
   ros::Subscriber sub_imu = estiplan.subscribe("/wamv/imu", 1000, ImuCallback);
   ros::Publisher wave_predictor =
       estiplan.advertise<std_msgs::Float64>("/wave_prediction", 1000);
+  ros::Publisher wave_future =
+      estiplan.advertise<std_msgs::Float64>("/wave_future_5s", 1000);
   ros::Rate loop_rate(1 / SAMPLE_TIME);
   double wave_output;
   double time_elap = 0;
@@ -154,7 +179,27 @@ int main(int argc, char **argv) {
       }
       wave_msg.data = w_k_hat(0);
       wave_predictor.publish(wave_msg);
+      wave_future_msg.data = 0.0;
+      for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+        freq(0) = freq_components[i];
+        phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)) -
+                   2 * M_PI * freq(0);
+        if (sin((2 * M_PI * freq(0)) + phase(0)) != 0.0) {
+          amplitude(0) = x_t(2 * i) / sin((2 * M_PI * freq(0)) + phase(0));
+
+        } else {
+          amplitude(0) = 0.0;
+        }
+        std::cout << "amplitude :" << amplitude(0) << std::endl;
+        wave_future_msg.data += amplitude(0) * sin(phase(0));
+      }
+      wave_future.publish(wave_future_msg);
     }
+    // std::cout << "Freq_components : " << std::endl;
+    for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+      // std::cout << freq_components[i] << std::endl;
+    }
+
     if (ros::isShuttingDown()) {
     }
     loop_rate.sleep();
