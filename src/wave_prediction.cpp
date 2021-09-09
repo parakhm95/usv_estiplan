@@ -32,7 +32,7 @@ Eigen::VectorXd l_k(2 * (WAVE_COMPONENTS + 1), 1);         // L_k Kalman gain
 Eigen::VectorXd x_predicted(2 * (WAVE_COMPONENTS + 1), 1); // X_k+1 predicted
 // A(t_0)
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
-    a_t = Eigen::MatrixXd::Identity(2 * (WAVE_COMPONENTS + 1),
+    a_t = Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1),
                                     2 * (WAVE_COMPONENTS + 1));
 // Phi_0
 Eigen::MatrixXd phi(2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
