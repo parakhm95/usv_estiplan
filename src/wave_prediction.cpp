@@ -141,7 +141,8 @@ int main(int argc, char **argv) {
   q(4, 4) = 0.05;
   q(5, 5) = 0.05;
   for (size_t i = 0; i < WAVE_COMPONENTS + 1; i++) {
-    c_t << 1.0, 0.0;
+    c_t(2 * i) = 1.0;
+    c_t((2 * i) + 1) = 0.0;
   }
   ros::init(argc, argv, "wave_prediction");
   ros::NodeHandle estiplan;
