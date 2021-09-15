@@ -1,42 +1,61 @@
+#include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "ros/ros.h"
-#include "sensor_msgs/Imu.h"
-#include "usv_estiplan/Fftoutput.h"
+#include "usv_estiplan/Fftarray.h"
+#include "usv_estiplan/Fftresult.h"
 #include <cmath>
 #include <fftw3.h>
 #include <fstream>
 #include <iostream>
 #include <queue>
 #include <sstream>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 using namespace std;
 
 #define REAL 0
 #define IMAG 1
 
-const int max_queue = 10000;
-const int samp_freq = 100;
-const int wave_components = 20;
+const int MAX_QUEUE = 10000;
+int samp_freq = 100;
+float fft_interval = 0.2;
+const int WAVE_COMPONENTS = 20;
+float fft_threshold = 0.02;
 queue<float> x_queue;
 queue<float> y_queue;
-uint64_t iter_global = 0;
-// fftw_complex in_x[N];
-// fftw_complex in_y[N];
-sensor_msgs::Imu imu_data{};
-geometry_msgs::Vector3 fft_data{};
-usv_estiplan::Fftoutput fft_msg{};
+queue<float> z_queue;
+queue<float> roll_queue;
+queue<float> pitch_queue;
+queue<float> yaw_queue;
+geometry_msgs::PoseStamped pose_data{};
+usv_estiplan::Fftresult fft_result{};
+usv_estiplan::Fftarray fft_array{};
 vector<vector<double>> wave_vec;
+string odom_topic_name;
+
+usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw);
+void executeFft(queue<float> queue_in, fftw_complex *out_fftw);
 
 void queue_things(queue<float> &queue_in, float push_in) {
-  while (queue_in.size() > max_queue) {
+  while (queue_in.size() > MAX_QUEUE) {
     queue_in.pop();
   }
   queue_in.push(push_in);
 }
 
-void imuCallback(sensor_msgs::Imu imu_data) {
-  queue_things(x_queue, imu_data.angular_velocity.x);
-  queue_things(y_queue, imu_data.angular_velocity.y);
+void odomCallback(const geometry_msgs::PoseStamped &msg) {
+  queue_things(x_queue, msg.pose.position.x);
+  queue_things(y_queue, msg.pose.position.y);
+  queue_things(z_queue, msg.pose.position.z);
+  tf2::Quaternion q(msg.pose.orientation.x, msg.pose.orientation.y,
+                    msg.pose.orientation.z, msg.pose.orientation.w);
+  tf2::Matrix3x3 m(q);
+  double roll, pitch, yaw;
+  m.getRPY(roll, pitch, yaw);
+  queue_things(roll_queue, roll);
+  queue_things(pitch_queue, pitch);
+  queue_things(yaw_queue, yaw);
 }
 void convert_que_to_array(queue<float> dupl, fftw_complex *fftw_in) {
   int fft_size = dupl.size(); // using dupl.size() multiple times was causing
@@ -55,73 +74,71 @@ bool sortcol(const vector<double> &v1, const vector<double> &v2) {
 int main(int argc, char **argv) {
 
   ros::init(argc, argv, "fft_estimate");
-  ros::NodeHandle estiplan;
-  ros::Subscriber sub = estiplan.subscribe("/wamv/imu", 1000, imuCallback);
+  ros::NodeHandle estiplan("~");
+  if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
+    ROS_WARN("odom_topic loading failed");
+    return -1;
+  }
+  if (!estiplan.getParam("/topics/sampling_freq", samp_freq)) {
+    ROS_WARN("sampling_freq loading failed");
+    return -1;
+  }
+  if (!estiplan.getParam("/fft_interval", fft_interval)) {
+    ROS_WARN("fft_interval loading failed");
+    return -1;
+  }
+  if (!estiplan.getParam("/fft_threshold", fft_threshold)) {
+    ROS_WARN("fft_threshold loading failed, using 0.02 default");
+  }
+  ros::Subscriber sub = estiplan.subscribe(odom_topic_name, 1000, odomCallback);
   ros::Publisher fft_transform =
-      estiplan.advertise<usv_estiplan::Fftoutput>("/fft_output/", 1000);
-  // ros::Publisher fft_transform =
-  // estiplan.advertise<geometry_msgs::Vector3>("/fft_output/y", 1000);
-  ros::Rate loop_rate(0.2);
+      estiplan.advertise<usv_estiplan::Fftresult>("/fft_output/", 1000);
+  ros::Rate loop_rate(1 / fft_interval);
   ofstream fft_output_capt;
   fft_output_capt.open("fft_data.csv");
-  x_queue.push(0); // to prevent core dump
-  for (size_t i = 0; i < max_queue / 2; i++) {
-    wave_vec.push_back({0, 0, 0});
+  x_queue.push(0);     // to prevent core dump
+  y_queue.push(0);     // to prevent core dump
+  z_queue.push(0);     // to prevent core dump
+  roll_queue.push(0);  // to prevent core dump
+  pitch_queue.push(0); // to prevent core dump
+  yaw_queue.push(0);   // to prevent core dump
+  for (size_t i = 0; i < MAX_QUEUE / 2; i++) {
+    wave_vec.push_back({0, 0, 0}); // Freq, Amp, Phase
   }
   while (ros::ok()) {
-    // one fft block begin
-    int fft_size = x_queue.size();
-    fftw_complex in_fftw_x[fft_size] = {};
+    int fft_size = 0;
+    //----------- x fft ---------------//
+    fft_size = x_queue.size();
     fftw_complex out_fftw_x[fft_size] = {};
-    convert_que_to_array(x_queue, in_fftw_x);
-    fftw_plan plan = fftw_plan_dft_1d(fft_size, in_fftw_x, out_fftw_x,
-                                      FFTW_FORWARD, FFTW_ESTIMATE);
-    fftw_execute(plan);
-    fftw_destroy_plan(plan);
-    fftw_cleanup();
-    // one fft block end
-    // one fft block begin
-    // fft_size = y_queue.size();
-    // fftw_complex in_fftw_y[fft_size] = {};
-    // fftw_complex out_fftw_y[fft_size] = {};
-    // convert_que_to_array(y_queue, in_fftw_y);
-    // plan = fftw_plan_dft_1d(fft_size,in_fftw_y,out_fftw_y,FFTW_FORWARD,
-    // FFTW_ESTIMATE); fftw_execute(plan); fftw_destroy_plan(plan);
-    // fftw_cleanup();
-    // one fft block end
-
-    double x_output[wave_components][3];
-    double y_output[wave_components][3];
+    executeFft(x_queue, out_fftw_x);
+    //----------- y fft ---------------//
+    fftw_complex out_fftw_y[fft_size] = {};
+    executeFft(y_queue, out_fftw_y);
+    //----------- z fft ---------------//
+    fftw_complex out_fftw_z[fft_size] = {};
+    executeFft(z_queue, out_fftw_z);
+    //----------- roll fft ---------------//
+    fftw_complex out_fftw_roll[fft_size] = {};
+    executeFft(roll_queue, out_fftw_roll);
+    //----------- pitch fft ---------------//
+    fftw_complex out_fftw_pitch[fft_size] = {};
+    executeFft(pitch_queue, out_fftw_pitch);
+    //----------- yaw fft ---------------//
+    fftw_complex out_fftw_yaw[fft_size] = {};
+    executeFft(yaw_queue, out_fftw_yaw);
 
     cout << "FFT accuracy(Hz) : " << float(samp_freq / 2.0f) / (fft_size / 2.0f)
          << endl;
-    int filler = 0;
-    for (int i = 0; i < fft_size / 2; i++) {
-      iter_global += 1;
-      wave_vec[i][0] = i * float(samp_freq / 2) / (fft_size / 2);
-      wave_vec[i][1] =
-          2.0f *
-          sqrt(pow(out_fftw_x[i][REAL], 2) + pow(out_fftw_x[i][IMAG], 2)) /
-          float(fft_size);
-      if (i == 0) {
-        wave_vec[i][1] = wave_vec[i][1] / 2;
-      }
-      wave_vec[i][2] = atan2(out_fftw_x[i][IMAG], out_fftw_x[i][REAL]);
-    }
-    sort(wave_vec.begin(), wave_vec.end(), sortcol);
-    for (size_t i = 0; i < wave_components; i++) {
-      if (wave_vec[i][1] > ((1.0 / 50.0) * wave_vec[0][1])) {
-        fft_msg.frequency[i] = wave_vec[i][0];
-        fft_msg.amplitude[i] = wave_vec[i][1];
-        fft_msg.phase[i] = wave_vec[i][2];
-      } else {
-        fft_msg.frequency[i] = 0.0;
-        fft_msg.amplitude[i] = 0.0;
-        fft_msg.phase[i] = 0.0;
-      }
-    }
-    // ros::Duration(0.01).sleep();
-    fft_transform.publish(fft_msg);
+
+    fft_result.header.stamp = ros::Time::now();
+    fft_result.x = processFft(fft_size, out_fftw_x);
+    fft_result.y = processFft(fft_size, out_fftw_y);
+    fft_result.z = processFft(fft_size, out_fftw_z);
+    fft_result.roll = processFft(fft_size, out_fftw_pitch);
+    fft_result.pitch = processFft(fft_size, out_fftw_roll);
+    fft_result.yaw = processFft(fft_size, out_fftw_yaw);
+
+    fft_transform.publish(fft_result);
     if (ros::isShuttingDown()) {
       fft_output_capt.close();
     }
@@ -130,4 +147,47 @@ int main(int argc, char **argv) {
   }
 
   return 0;
+}
+
+void executeFft(queue<float> queue_in, fftw_complex *out_fftw) {
+  int fft_size = queue_in.size();
+  fftw_complex in_fftw[fft_size] = {};
+  convert_que_to_array(queue_in, in_fftw);
+  fftw_plan plan = fftw_plan_dft_1d(fft_size, in_fftw, out_fftw, FFTW_FORWARD,
+                                    FFTW_ESTIMATE);
+  fftw_execute(plan);
+  fftw_destroy_plan(plan);
+  fftw_cleanup();
+}
+
+usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw) {
+
+  for (int i = 0; i < fft_size / 2; i++) {
+    // Frequency
+    wave_vec[i][0] = i * float(samp_freq / 2) / (fft_size / 2);
+    // Amplitude
+    wave_vec[i][1] =
+        2.0f * sqrt(pow(out_fftw[i][REAL], 2) + pow(out_fftw[i][IMAG], 2)) /
+        float(fft_size);
+    // DC component is doubled up so we reduce it again
+    if (i == 0) {
+      wave_vec[i][1] = wave_vec[i][1] / 2;
+    }
+    // Phase
+    wave_vec[i][2] = atan2(out_fftw[i][IMAG], out_fftw[i][REAL]);
+  }
+  sort(wave_vec.begin(), wave_vec.end(), sortcol);
+  usv_estiplan::Fftarray fft_array;
+  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+    if (wave_vec[i][1] > (fft_threshold * wave_vec[0][1])) {
+      fft_array.frequency[i] = wave_vec[i][0];
+      fft_array.amplitude[i] = wave_vec[i][1];
+      fft_array.phase[i] = wave_vec[i][2];
+    } else {
+      fft_array.frequency[i] = 0.0;
+      fft_array.amplitude[i] = 0.0;
+      fft_array.phase[i] = 0.0;
+    }
+  }
+  return fft_array;
 }

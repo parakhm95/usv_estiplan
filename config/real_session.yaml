@@ -1,0 +1,34 @@
+name: real_wave
+
+root: ./
+
+startup_window: real_wave
+
+windows:
+
+  - real_wave:
+
+      layout: tiled
+
+      panes:
+
+        - offshore_start
+  - fft_prediction:
+      layout: tiled
+
+      panes:
+       
+        - roslaunch usv_estiplan gazebo_wave.launch
+  # - recorder:
+  #      layout: tiled
+
+  #      panes:
+  #       - rosbag record -a -O /home/octo/Documents/lmpc_bags/test.bag
+
+  # - visualization:
+
+  #     layout: tiled
+
+  #     panes:
+
+  #       - sleep 15; 

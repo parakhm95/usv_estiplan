@@ -2,5 +2,5 @@
 <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" />
 <node name="wave_prediction" pkg="usv_estiplan" type="wave_prediction_node" output="screen"/>
 <node name="wave_generation" pkg="usv_estiplan" type="wave_generation_node" />
-<node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" />
+<node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" args="-l $(find usv_estiplan)/config/comparison.xml"/>
 </launch>

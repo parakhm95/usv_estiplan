@@ -3,7 +3,6 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
 #include "std_msgs/Float64.h"
-#include "usv_estiplan/Fftoutput.h"
 #include <cmath>
 #include <fstream>
 #include <iostream>

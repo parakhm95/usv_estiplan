@@ -1,5 +1,6 @@
 <launch>
-<node name="fft_estimate" pkg="usv_estiplan" type="fft_node" />
+<rosparam command="load" file="$(find usv_estiplan)/config/fft_estimate.yaml" />
+<node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen"/>
 <node name="wave_prediction" pkg="usv_estiplan" type="wave_prediction_node" output="screen"/>
 <!-- <node name="wave_generation" pkg="usv_estiplan" type="wave_generation_node" /> -->
 <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" />
