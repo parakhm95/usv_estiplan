@@ -3,7 +3,7 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
 #include "std_msgs/Float64.h"
-#include "usv_estiplan/Fftoutput.h"
+#include "usv_estiplan/Fftresult.h"
 #include <Eigen/Dense>
 #include <cmath>
 #include <fstream>
@@ -20,7 +20,7 @@ using namespace std;
 const int WAVE_COMPONENTS = 20;
 const float SAMPLE_TIME = 0.01;
 uint64_t iter_global = 0;
-usv_estiplan::Fftoutput fft_msg{};
+usv_estiplan::Fftresult fft_msg{};
 double msg_time;
 std_msgs::Float64 wave_msg;
 std_msgs::Float64 wave_future_msg;
@@ -33,7 +33,7 @@ Eigen::VectorXd x_predicted(2 * (WAVE_COMPONENTS + 1), 1); // X_k+1 predicted
 // A(t_0)
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
     a_t = Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1),
-                                    2 * (WAVE_COMPONENTS + 1));
+                                2 * (WAVE_COMPONENTS + 1));
 // Phi_0
 Eigen::MatrixXd phi(2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
 // P_k+1 predicted
@@ -54,12 +54,13 @@ Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)> q =
     Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
 bool first_start = true;
 bool parity_matrix[2][WAVE_COMPONENTS];
-double freq_components[WAVE_COMPONENTS];
+Eigen::VectorXd freq_components(WAVE_COMPONENTS);
 
 Eigen::VectorXd phase(1);
 Eigen::VectorXd freq(1);
 Eigen::VectorXd amplitude(1);
-std::ofstream csv_debug;
+// std::ofstream csv_debug;
+Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 
 // row-0 is last, row-1 is current
 // true is present, false is notpresent
@@ -68,17 +69,17 @@ void ImuCallback(sensor_msgs::Imu imu_data) {
   w_k(0) = imu_data.angular_velocity.x;
 }
 
-void FftCallback(usv_estiplan::Fftoutput in_msg) {
-  if (first_start) {
-    csv_debug.open(
-        "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv");
-    csv_debug << "freq_mat;parity0;cur_msg;parity1;";
-    csv_debug << "\n";
-  } else {
-    csv_debug.open(
-        "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv",
-        std::ios::app);
-  }
+void FftCallback(usv_estiplan::Fftresult in_msg) {
+  // if (first_start) {
+  //   csv_debug.open(
+  //       "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv");
+  //   csv_debug << "freq_mat;parity0;cur_msg;parity1;";
+  //   csv_debug << "\n";
+  // } else {
+  //   csv_debug.open(
+  //       "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv",
+  //       std::ios::app);
+  // }
   fft_msg = in_msg;
   first_start = false;
   // reset parity matrix
@@ -90,8 +91,8 @@ void FftCallback(usv_estiplan::Fftoutput in_msg) {
   // check which components already exist
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
     for (size_t j = 0; j < WAVE_COMPONENTS; j++) {
-      if (trunc(1000. * fft_msg.frequency[i]) ==
-              trunc(1000. * freq_components[j]) &&
+      if (trunc(1000. * fft_msg.x.frequency[i]) ==
+              trunc(1000. * freq_components(j)) &&
           (parity_matrix[0][j] != true) && (parity_matrix[1][i] != true)) {
         parity_matrix[0][j] = true; // row-0 for last_msg
         parity_matrix[1][i] = true; // row-1 for new_msg
@@ -104,14 +105,16 @@ void FftCallback(usv_estiplan::Fftoutput in_msg) {
       while (parity_matrix[1][spot_avlb] && spot_avlb < WAVE_COMPONENTS) {
         spot_avlb += 1;
       }
-      freq_components[i] = fft_msg.frequency[spot_avlb];
+      freq_components(i) = fft_msg.x.frequency[spot_avlb];
       // changing A matrices
-      a_i(1) = -pow(2 * M_PI * fft_msg.frequency[spot_avlb], 2);
+      a_i(1) = -pow(2 * M_PI * fft_msg.x.frequency[spot_avlb], 2);
       a_t.block(2 * i, 2 * i, 2, 2) = a_i;
       // changing X matrices
-      x_i(0) = fft_msg.amplitude[spot_avlb] * sin(fft_msg.phase[spot_avlb]);
-      x_i(1) = 2 * M_PI * fft_msg.amplitude[spot_avlb] *
-               fft_msg.frequency[spot_avlb] * cos(fft_msg.phase[spot_avlb]);
+      x_i(0) = fft_msg.x.amplitude[spot_avlb] * sin(fft_msg.x.phase[spot_avlb]);
+      x_i(1) = 2 * M_PI * fft_msg.x.amplitude[spot_avlb] *
+               fft_msg.x.frequency[spot_avlb] * cos(fft_msg.x.phase[spot_avlb]);
+      std::cout << x_i(0) << std::endl;
+      std::cout << x_i(1) << std::endl;
       x_t.block(2 * i, 0, 2, 1) = x_i;
       spot_avlb += 1;
     }
@@ -119,27 +122,32 @@ void FftCallback(usv_estiplan::Fftoutput in_msg) {
   // updating Phi
   phi = (a_t * SAMPLE_TIME).exp();
   msg_time = ros::Time::now().toNSec();
-  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-    csv_debug << freq_components[i] << ";" << parity_matrix[0][i] << ";"
-              << in_msg.frequency[i] << ";" << parity_matrix[1][i] << ";"
-              << "\n";
-  }
-  csv_debug.close();
+  // for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+  //   csv_debug << freq_components[i] << ";" << parity_matrix[0][i] << ";"
+  //             << in_msg.frequency[i] << ";" << parity_matrix[1][i] << ";"
+  //             << "\n";
+  // }
+  // csv_debug.close();
+  // }
 }
 
 int main(int argc, char **argv) {
-  r(0) = 0.11;
+  // csv_debug.open(
+  // "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv");
+
+  r(0) = 0.05;
   x_t(2 * WAVE_COMPONENTS) = 0.0;
   x_t(2 * WAVE_COMPONENTS + 1) = 0.0;
   a_i(0) = 0.0;
   a_i(2) = 1.0;
   a_i(3) = 0.0;
-  q(0, 0) = 0.1;
-  q(1, 1) = 0.1;
-  q(2, 2) = 0.05;
-  q(3, 3) = 0.05;
-  q(4, 4) = 0.05;
-  q(5, 5) = 0.05;
+  p_k(2 * WAVE_COMPONENTS + 1, 2 * WAVE_COMPONENTS + 1) = 10.0;
+  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+    q(i, i) = 0.01;
+  }
+  q(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS) = 0.001;
+  q((2 * WAVE_COMPONENTS) + 1, (2 * WAVE_COMPONENTS) + 1) = 0.001;
+
   for (size_t i = 0; i < WAVE_COMPONENTS + 1; i++) {
     c_t(2 * i) = 1.0;
     c_t((2 * i) + 1) = 0.0;
@@ -157,11 +165,46 @@ int main(int argc, char **argv) {
   double time_elap = 0;
   while (ros::ok()) {
     if (!first_start) {
+
+      // csv_debug << "freq_components" << std::endl;
+      // csv_debug << freq_components.format(CSVFormat) << std::endl;
+      // csv_debug << "x_t" << std::endl;
+      // csv_debug << x_t.format(CSVFormat) << std::endl;
       x_predicted = phi * x_t;
-      q_dash = 0.5 * (phi * q * phi.transpose() + q) * SAMPLE_TIME;
-      p_k_dash = (phi * p_k_dash * phi.transpose() + q_dash).eval();
+      // csv_debug << "phi" << std::endl;
+      // csv_debug << phi.format(CSVFormat) << std::endl;
+      // csv_debug << "x_predicted";
+      // csv_debug << "\n";
+
+      // csv_debug << x_predicted.format(CSVFormat);
+      // csv_debug << "\n";
+      q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * SAMPLE_TIME;
+      // csv_debug << "q_dash";
+      // csv_debug << "\n";
+
+      // csv_debug << q_dash.format(CSVFormat);
+      // csv_debug << "\n";
+      p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
+      // csv_debug << "p_k_dash";
+      // csv_debug << "\n";
+      // csv_debug << p_k_dash.format(CSVFormat);
+
+      // csv_debug << "\n";
       l_k = p_k_dash * c_t.transpose() *
             (c_t * p_k_dash * c_t.transpose() + r).inverse();
+      // csv_debug << "p_k_dash*c_t" << std::endl;
+      // csv_debug << (p_k_dash * c_t.transpose()).format(CSVFormat) <<
+      // std::endl; csv_debug << "(c_t * p_k_dash * c_t.transpose() +
+      // r).inverse()"
+      // << std::endl;
+      // csv_debug << (c_t * p_k_dash * c_t.transpose() + r) << std::endl;
+      // csv_debug << (c_t * p_k_dash * c_t.transpose() + r).inverse()
+      // << std::endl;
+      // csv_debug << "l_k";
+      // csv_debug << "\n";
+
+      // csv_debug << l_k.format(CSVFormat);
+      // csv_debug << "\n";
       w_k_hat = c_t * x_t;
       x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
       w_k_hat = c_t * x_predicted;
@@ -169,14 +212,18 @@ int main(int argc, char **argv) {
                                        2 * (WAVE_COMPONENTS + 1)) -
              (l_k * c_t)) *
             p_k_dash;
+      // csv_debug << "p_k";
+      // csv_debug << "\n";
+      // csv_debug << p_k.format(CSVFormat);
+      // csv_debug << "\n";
       x_t = x_predicted;
       p_k_dash = p_k;
       wave_output = 0;
       for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
         time_elap = (ros::Time::now().toNSec() - msg_time) * 1e-9;
-        wave_output += fft_msg.amplitude[i] *
-                       sin((fft_msg.frequency[i] * 2 * M_PI * time_elap) +
-                           fft_msg.phase[i]);
+        wave_output += fft_msg.x.amplitude[i] *
+                       sin((fft_msg.x.frequency[i] * 2 * M_PI * time_elap) +
+                           fft_msg.x.phase[i]);
       }
       wave_msg.data = w_k_hat(0);
       wave_predictor.publish(wave_msg);
@@ -185,15 +232,17 @@ int main(int argc, char **argv) {
         freq(0) = freq_components[i];
         phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)) -
                    2 * M_PI * freq(0);
+        // time_ahead = (ros::Time::now().toNSec() * 1e-9) + 5.0;
         if (sin((2 * M_PI * freq(0)) + phase(0)) != 0.0) {
           amplitude(0) = x_t(2 * i) / sin((2 * M_PI * freq(0)) + phase(0));
 
         } else {
           amplitude(0) = 0.0;
         }
-        std::cout << "amplitude :" << amplitude(0) << std::endl;
-        wave_future_msg.data += amplitude(0) * sin(phase(0));
+        wave_future_msg.data +=
+            amplitude(0) * sin((2 * M_PI * freq(0) * 5) + phase(0));
       }
+      wave_future_msg.data += x_t(2 * WAVE_COMPONENTS);
       wave_future.publish(wave_future_msg);
     }
     // std::cout << "Freq_components : " << std::endl;
@@ -202,6 +251,7 @@ int main(int argc, char **argv) {
     }
 
     if (ros::isShuttingDown()) {
+      // csv_debug.close();
     }
     loop_rate.sleep();
     ros::spinOnce();
