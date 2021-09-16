@@ -3,6 +3,7 @@
 #include "geometry_msgs/Vector3.h"
 #include "ros/ros.h"
 #include "std_msgs/Float64.h"
+#include "usv_estiplan/Fftarray.h"
 #include "usv_estiplan/Fftresult.h"
 #include <Eigen/Dense>
 #include <cmath>
@@ -23,7 +24,7 @@ const int WAVE_COMPONENTS = 20;
 int sampling_freq = 100;
 float sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
-usv_estiplan::Fftresult fft_msg{};
+usv_estiplan::Fftarray fft_array{};
 double msg_time;
 std_msgs::Float64 wave_msg;
 std_msgs::Float64 wave_future_msg;
@@ -105,7 +106,22 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
   //       "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv",
   //       std::ios::app);
   // }
-  fft_msg = in_msg;
+  if (dof_name == "x") {
+    fft_array = in_msg.x;
+  } else if (dof_name == "y") {
+    fft_array = in_msg.y;
+  } else if (dof_name == "z") {
+    fft_array = in_msg.z;
+  } else if (dof_name == "roll") {
+    fft_array = in_msg.roll;
+  } else if (dof_name == "pitch") {
+    fft_array = in_msg.pitch;
+  } else if (dof_name == "yaw") {
+    fft_array = in_msg.yaw;
+  } else {
+    ROS_ERROR("dof_name was not specified, shutting down");
+    ros::shutdown();
+  }
   first_start = false;
   // reset parity matrix
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
@@ -116,7 +132,7 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
   // check which components already exist
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
     for (size_t j = 0; j < WAVE_COMPONENTS; j++) {
-      if (trunc(1000. * fft_msg.x.frequency[i]) ==
+      if (trunc(1000. * fft_array.frequency[i]) ==
               trunc(1000. * freq_components(j)) &&
           (parity_matrix[0][j] != true) && (parity_matrix[1][i] != true)) {
         parity_matrix[0][j] = true; // row-0 for last_msg
@@ -130,14 +146,14 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
       while (parity_matrix[1][spot_avlb] && spot_avlb < WAVE_COMPONENTS) {
         spot_avlb += 1;
       }
-      freq_components(i) = fft_msg.x.frequency[spot_avlb];
+      freq_components(i) = fft_array.frequency[spot_avlb];
       // changing A matrices
-      a_i(1) = -pow(2 * M_PI * fft_msg.x.frequency[spot_avlb], 2);
+      a_i(1) = -pow(2 * M_PI * fft_array.frequency[spot_avlb], 2);
       a_t.block(2 * i, 2 * i, 2, 2) = a_i;
       // changing X matrices
-      x_i(0) = fft_msg.x.amplitude[spot_avlb] * sin(fft_msg.x.phase[spot_avlb]);
-      x_i(1) = 2 * M_PI * fft_msg.x.amplitude[spot_avlb] *
-               fft_msg.x.frequency[spot_avlb] * cos(fft_msg.x.phase[spot_avlb]);
+      x_i(0) = fft_array.amplitude[spot_avlb] * sin(fft_array.phase[spot_avlb]);
+      x_i(1) = 2 * M_PI * fft_array.amplitude[spot_avlb] *
+               fft_array.frequency[spot_avlb] * cos(fft_array.phase[spot_avlb]);
       std::cout << x_i(0) << std::endl;
       std::cout << x_i(1) << std::endl;
       x_t.block(2 * i, 0, 2, 1) = x_i;
@@ -203,7 +219,6 @@ int main(int argc, char **argv) {
   ros::Publisher wave_future = estiplan.advertise<std_msgs::Float64>(
       "/wave_future_5s/" + dof_name, 1000);
   ros::Rate loop_rate(sampling_freq);
-  double wave_output;
   double time_elap = 0;
   while (ros::ok()) {
     if (!first_start) {
@@ -260,13 +275,6 @@ int main(int argc, char **argv) {
       // csv_debug << "\n";
       x_t = x_predicted;
       p_k_dash = p_k;
-      wave_output = 0;
-      for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-        time_elap = (ros::Time::now().toNSec() - msg_time) * 1e-9;
-        wave_output += fft_msg.x.amplitude[i] *
-                       sin((fft_msg.x.frequency[i] * 2 * M_PI * time_elap) +
-                           fft_msg.x.phase[i]);
-      }
       wave_msg.data = w_k_hat(0);
       wave_predictor.publish(wave_msg);
       wave_future_msg.data = 0.0;
