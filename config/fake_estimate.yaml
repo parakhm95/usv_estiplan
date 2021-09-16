@@ -1,0 +1,6 @@
+topics:
+  odom: "/uav1/rs_d435/color/base_detections"
+  sampling_freq: 100
+# dof_name: "x"
+fft_interval: 5.0 # 5 seconds or 0.2 Hz
+fft_threshold: 0.02 # Amplitude less than 2% of max is discarded

@@ -7,6 +7,5 @@
 <node name="wave_prediction_roll" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="roll"/>
 <node name="wave_prediction_pitch" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="pitch"/>
 <node name="wave_prediction_yaw" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="yaw"/>
-<!-- <node name="wave_generation" pkg="usv_estiplan" type="wave_generation_node" /> -->
 <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" />
 </launch>

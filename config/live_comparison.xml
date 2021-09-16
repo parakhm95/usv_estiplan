@@ -3,58 +3,57 @@
  <tabbed_widget name="Main Window" parent="main_window">
   <Tab containers="1" tab_name="tab1">
    <Container>
-    <DockSplitter sizes="0.333709;0.332582;0.333709" orientation="-" count="3">
-     <DockSplitter sizes="0.5;0.5" orientation="|" count="2">
+    <DockSplitter orientation="-" sizes="0.333709;0.332582;0.333709" count="3">
+     <DockSplitter orientation="|" sizes="0.5;0.5" count="2">
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range left="46.940081" bottom="11.012657" right="66.940154" top="15.449017"/>
+        <range top="2.183320" left="61.869594" bottom="-2.661476" right="81.860338"/>
         <limitY/>
-        <curve color="#d62728" name="/uav1/rs_d435/color/base_detections/pose/position/x"/>
-        <curve color="#1f77b4" name="/wave_prediction/x/data"/>
+        <curve name="/wave_prediction/x/data" color="#1f77b4"/>
+        <curve name="/uav1/rs_d435/color/base_detections/pose/position/x" color="#d62728"/>
        </plot>
       </DockArea>
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range left="46.940120" bottom="-0.720316" right="66.940248" top="0.808029"/>
+        <range top="1.888890" left="61.869800" bottom="-1.813403" right="81.860448"/>
         <limitY/>
-        <curve color="#1f77b4" name="/uav1/rs_d435/color/base_detections/rpy/x"/>
-        <curve color="#ff7f0e" name="/wave_prediction/roll/data"/>
-       </plot>
-      </DockArea>
-     </DockSplitter>
-     <DockSplitter sizes="0.5;0.5" orientation="|" count="2">
-      <DockArea name="...">
-       <plot style="Lines" mode="TimeSeries">
-        <range left="46.940081" bottom="36.718004" right="66.940219" top="43.744471"/>
-        <limitY/>
-        <curve color="#1ac938" name="/uav1/rs_d435/color/base_detections/pose/position/y"/>
-        <curve color="#d62728" name="/wave_prediction/y/data"/>
-       </plot>
-      </DockArea>
-      <DockArea name="...">
-       <plot style="Lines" mode="TimeSeries">
-        <range left="46.940120" bottom="-1.088537" right="66.940125" top="1.545161"/>
-        <limitY/>
-        <curve color="#d62728" name="/uav1/rs_d435/color/base_detections/rpy/y"/>
-        <curve color="#f14cc1" name="/wave_prediction/pitch/data"/>
+        <curve name="/wave_prediction/pitch/data" color="#17becf"/>
        </plot>
       </DockArea>
      </DockSplitter>
-     <DockSplitter sizes="0.5;0.5" orientation="|" count="2">
+     <DockSplitter orientation="|" sizes="0.5;0.5" count="2">
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range left="46.940081" bottom="-188.363750" right="66.940304" top="52.023785"/>
+        <range top="43.728983" left="61.869594" bottom="36.741952" right="81.860367"/>
         <limitY/>
-        <curve color="#f14cc1" name="/uav1/rs_d435/color/base_detections/pose/position/z"/>
-        <curve color="#1ac938" name="/wave_prediction/z/data"/>
+        <curve name="/wamv/imu/angular_velocity/x" color="#1ac938"/>
+        <curve name="/wave_prediction/data" color="#1f77b4"/>
+        <curve name="/uav1/rs_d435/color/base_detections/pose/position/y" color="#1ac938"/>
+        <curve name="/wave_prediction/y/data" color="#ff7f0e"/>
        </plot>
       </DockArea>
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range left="46.940120" bottom="-0.819765" right="66.940204" top="1.103251"/>
+        <range top="4.420697" left="61.869746" bottom="-3.955530" right="81.860386"/>
         <limitY/>
-        <curve color="#1ac938" name="/uav1/rs_d435/color/base_detections/rpy/z"/>
-        <curve color="#9467bd" name="/wave_prediction/yaw/data"/>
+        <curve name="/wave_prediction/roll/data" color="#bcbd22"/>
+       </plot>
+      </DockArea>
+     </DockSplitter>
+     <DockSplitter orientation="|" sizes="0.5;0.5" count="2">
+      <DockArea name="...">
+       <plot style="Lines" mode="TimeSeries">
+        <range top="11.529651" left="61.869594" bottom="7.032327" right="81.860483"/>
+        <limitY/>
+        <curve name="/uav1/rs_d435/color/base_detections/pose/position/z" color="#f14cc1"/>
+        <curve name="/wave_prediction/z/data" color="#9467bd"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot style="Lines" mode="TimeSeries">
+        <range top="3.813749" left="61.869812" bottom="-3.311315" right="81.860300"/>
+        <limitY/>
+        <curve name="/wave_prediction/yaw/data" color="#1f77b4"/>
        </plot>
       </DockArea>
      </DockSplitter>
