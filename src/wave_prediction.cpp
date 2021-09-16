@@ -21,8 +21,8 @@ using namespace std;
 #define IMAG 1
 
 const int WAVE_COMPONENTS = 20;
-int sampling_freq = 100;
-float sample_time = 1 / sampling_freq;
+double sampling_freq = 100;
+double sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
 usv_estiplan::Fftarray fft_array{};
 double msg_time;
@@ -75,18 +75,19 @@ Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 bool PredictionServiceCallback(usv_estiplan::PredictionOutput::Request &req,
                                usv_estiplan::PredictionOutput::Response &res) {
   double pred_time = req.pred_time;
+  double t_k = 0.0;
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-
+    t_k = (ros::Time::now().toNSec() - msg_time) * 1e-9;
     //------extracting frequency-----
     freq(0) = freq_components[i];
 
     // --------------------------extracting phase------------------------
     phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)) -
-               2 * M_PI * freq(0);
+               2 * M_PI * freq(0) * t_k;
 
     // -------------------extracting amplitude-------------------------
-    if (sin((2 * M_PI * freq(0)) + phase(0)) != 0.0) {
-      amplitude(0) = x_t(2 * i) / sin((2 * M_PI * freq(0)) + phase(0));
+    if (sin((2 * M_PI * freq(0) * t_k) + phase(0)) != 0.0) {
+      amplitude(0) = x_t(2 * i) / sin((2 * M_PI * freq(0) * t_k) + phase(0));
     } else {
       amplitude(0) = 0.0;
     }
