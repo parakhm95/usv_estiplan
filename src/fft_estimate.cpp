@@ -76,19 +76,19 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "fft_estimate");
   ros::NodeHandle estiplan("~");
   if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
-    ROS_WARN("odom_topic loading failed");
+    ROS_ERROR("odom_topic loading failed");
     return -1;
   }
   if (!estiplan.getParam("/topics/sampling_freq", samp_freq)) {
-    ROS_WARN("sampling_freq loading failed");
+    ROS_ERROR("sampling_freq loading failed");
     return -1;
   }
   if (!estiplan.getParam("/fft_interval", fft_interval)) {
-    ROS_WARN("fft_interval loading failed");
+    ROS_ERROR("fft_interval loading failed");
     return -1;
   }
   if (!estiplan.getParam("/fft_threshold", fft_threshold)) {
-    ROS_WARN("fft_threshold loading failed, using 0.02 default");
+    ROS_ERROR("fft_threshold loading failed, using 0.02 default");
   }
   ros::Subscriber sub = estiplan.subscribe(odom_topic_name, 1000, odomCallback);
   ros::Publisher fft_transform =
@@ -169,17 +169,28 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw) {
     wave_vec[i][1] =
         2.0f * sqrt(pow(out_fftw[i][REAL], 2) + pow(out_fftw[i][IMAG], 2)) /
         float(fft_size);
-    // DC component is doubled up so we reduce it again
-    if (i == 0) {
-      wave_vec[i][1] = wave_vec[i][1] / 2;
-    }
     // Phase
     wave_vec[i][2] = atan2(out_fftw[i][IMAG], out_fftw[i][REAL]);
+    // DC component is doubled up so we reduce it again
+    // Its phase is set to PI/2 to prevent it from disappearing
+    if (i == 0) {
+      wave_vec[i][1] = wave_vec[i][1] / 2;
+      wave_vec[i][2] = M_PI/2;
+    }
   }
   sort(wave_vec.begin(), wave_vec.end(), sortcol);
   usv_estiplan::Fftarray fft_array;
+  //------------Fix for Issue #8-----------
+  double fft_threshold_ref = 0.0;
+  if(wave_vec[0][0]==0){
+    fft_threshold_ref = fft_threshold * wave_vec[1][1];
+  }
+  else{
+    fft_threshold_ref = fft_threshold * wave_vec[0][1];
+  }
+
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-    if (wave_vec[i][1] > (fft_threshold * wave_vec[0][1])) {
+    if (wave_vec[i][1] > fft_threshold_ref) {
       fft_array.frequency[i] = wave_vec[i][0];
       fft_array.amplitude[i] = wave_vec[i][1];
       fft_array.phase[i] = wave_vec[i][2];

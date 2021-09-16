@@ -5,6 +5,7 @@
 #include "std_msgs/Float64.h"
 #include "usv_estiplan/Fftarray.h"
 #include "usv_estiplan/Fftresult.h"
+#include "usv_estiplan/PredictionOutput.h"
 #include <Eigen/Dense>
 #include <cmath>
 #include <fstream>
@@ -14,7 +15,6 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <unsupported/Eigen/MatrixFunctions>
-
 using namespace std;
 
 #define REAL 0
@@ -28,6 +28,8 @@ usv_estiplan::Fftarray fft_array{};
 double msg_time;
 std_msgs::Float64 wave_msg;
 std_msgs::Float64 wave_future_msg;
+ros::Publisher wave_predictor;
+ros::Publisher wave_future;
 string odom_topic_name;
 string dof_name;
 Eigen::VectorXd w_k_hat(1);
@@ -59,6 +61,8 @@ Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)> q =
     Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
 bool first_start = true;
+// row-0 is last, row-1 is current
+// true is present, false is notpresent
 bool parity_matrix[2][WAVE_COMPONENTS];
 Eigen::VectorXd freq_components(WAVE_COMPONENTS);
 
@@ -68,15 +72,56 @@ Eigen::VectorXd amplitude(1);
 // std::ofstream csv_debug;
 Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 
-// row-0 is last, row-1 is current
-// true is present, false is notpresent
+bool PredictionServiceCallback(usv_estiplan::PredictionOutput::Request &req,
+                               usv_estiplan::PredictionOutput::Response &res) {
+  double pred_time = req.pred_time;
+  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+
+    //------extracting frequency-----
+    freq(0) = freq_components[i];
+
+    // --------------------------extracting phase------------------------
+    phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)) -
+               2 * M_PI * freq(0);
+
+    // -------------------extracting amplitude-------------------------
+    if (sin((2 * M_PI * freq(0)) + phase(0)) != 0.0) {
+      amplitude(0) = x_t(2 * i) / sin((2 * M_PI * freq(0)) + phase(0));
+    } else {
+      amplitude(0) = 0.0;
+    }
+    // ------------ predictions ----------------
+    res.zeroth = 0.0;
+    res.first = 0.0;
+    res.second = 0.0;
+    {
+      // --------------- zeroth ------------------
+      res.zeroth +=
+          amplitude(0) * sin((2 * M_PI * freq(0) * pred_time) + phase(0));
+    }
+    {
+      // --------------- first --------------------
+      res.first += amplitude(0) * 2 * M_PI * freq(0) *
+                   cos((2 * M_PI * freq(0) * pred_time) + phase(0));
+    }
+    {
+      // --------------- second --------------------
+      res.second += -amplitude(0) * pow(2 * M_PI * freq(0), 2) *
+                    sin((2 * M_PI * freq(0) * pred_time) + phase(0));
+    }
+  }
+  // ------------------- adding random noise component -----------------
+  res.zeroth += x_t(2 * WAVE_COMPONENTS);
+  res.response = "success";
+  return true;
+}
 
 void OdomCallback(const geometry_msgs::PoseStamped &msg) {
-  tf2::Quaternion q(msg.pose.orientation.x, msg.pose.orientation.y,
-                    msg.pose.orientation.z, msg.pose.orientation.w);
-  tf2::Matrix3x3 m(q);
+  tf2::Quaternion quat(msg.pose.orientation.x, msg.pose.orientation.y,
+                       msg.pose.orientation.z, msg.pose.orientation.w);
+  tf2::Matrix3x3 mat(quat);
   double roll, pitch, yaw;
-  m.getRPY(roll, pitch, yaw);
+  mat.getRPY(roll, pitch, yaw);
   if (dof_name == "x") {
     w_k(0) = msg.pose.position.x;
   } else if (dof_name == "y") {
@@ -93,19 +138,29 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     ROS_ERROR("dof_name was not specified, shutting down");
     ros::shutdown();
   }
+  if (!first_start) {
+    x_predicted = phi * x_t;
+    q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
+    p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
+    l_k = p_k_dash * c_t.transpose() *
+          (c_t * p_k_dash * c_t.transpose() + r).inverse();
+    w_k_hat = c_t * x_t;
+    x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
+    w_k_hat = c_t * x_predicted;
+    p_k = (Eigen::MatrixXd::Identity(2 * (WAVE_COMPONENTS + 1),
+                                     2 * (WAVE_COMPONENTS + 1)) -
+           (l_k * c_t)) *
+          p_k_dash;
+    x_t = x_predicted;
+    p_k_dash = p_k;
+    wave_msg.data = w_k_hat(0);
+    wave_future_msg.data = 0.0;
+    wave_predictor.publish(wave_msg);
+    wave_future.publish(wave_future_msg);
+  }
 }
 
 void FftCallback(usv_estiplan::Fftresult in_msg) {
-  // if (first_start) {
-  //   csv_debug.open(
-  //       "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv");
-  //   csv_debug << "freq_mat;parity0;cur_msg;parity1;";
-  //   csv_debug << "\n";
-  // } else {
-  //   csv_debug.open(
-  //       "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv",
-  //       std::ios::app);
-  // }
   if (dof_name == "x") {
     fft_array = in_msg.x;
   } else if (dof_name == "y") {
@@ -163,18 +218,9 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
   // updating Phi
   phi = (a_t * sample_time).exp();
   msg_time = ros::Time::now().toNSec();
-  // for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-  //   csv_debug << freq_components[i] << ";" << parity_matrix[0][i] << ";"
-  //             << in_msg.frequency[i] << ";" << parity_matrix[1][i] << ";"
-  //             << "\n";
-  // }
-  // csv_debug.close();
-  // }
 }
 
 int main(int argc, char **argv) {
-  // csv_debug.open(
-  // "/home/octo/Documents/offshore_wrs/src/usv_estiplan/csv_debug.csv");
 
   r(0) = 0.05;
   x_t(2 * WAVE_COMPONENTS) = 0.0;
@@ -196,115 +242,33 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "wave_prediction", ros::init_options::AnonymousName);
   ros::NodeHandle estiplan("~");
   if (argc != 2) {
-    ROS_WARN("Specify the DOF arg in launch file");
+    ROS_ERROR("Specify the DOF arg in launch file");
     return -1;
   }
   dof_name = argv[1];
   if (!estiplan.getParam("/topics/sampling_freq", sampling_freq)) {
     sample_time = 1 / sampling_freq;
-    ROS_WARN("sampling_freq loading failed");
+    ROS_ERROR("sampling_freq loading failed");
     return -1;
   }
-  ROS_INFO("Are we here1?");
   if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
-    ROS_WARN("WAVE_PRED:odom_topic loading failed");
+    ROS_ERROR("WAVE_PRED:odom_topic loading failed");
     return -1;
   }
 
   ros::Subscriber sub = estiplan.subscribe("/fft_output/", 1000, FftCallback);
   ros::Subscriber sub_pose =
       estiplan.subscribe(odom_topic_name, 1000, OdomCallback);
-  ros::Publisher wave_predictor = estiplan.advertise<std_msgs::Float64>(
+  wave_predictor = estiplan.advertise<std_msgs::Float64>(
       "/wave_prediction/" + dof_name, 1000);
-  ros::Publisher wave_future = estiplan.advertise<std_msgs::Float64>(
+  wave_future = estiplan.advertise<std_msgs::Float64>(
       "/wave_future_5s/" + dof_name, 1000);
-  ros::Rate loop_rate(sampling_freq);
-  double time_elap = 0;
+  ros::ServiceServer prediction_srv = estiplan.advertiseService(
+      "/wave_prediction/" + dof_name, PredictionServiceCallback);
   while (ros::ok()) {
-    if (!first_start) {
-
-      // csv_debug << "freq_components" << std::endl;
-      // csv_debug << freq_components.format(CSVFormat) << std::endl;
-      // csv_debug << "x_t" << std::endl;
-      // csv_debug << x_t.format(CSVFormat) << std::endl;
-      x_predicted = phi * x_t;
-      // csv_debug << "phi" << std::endl;
-      // csv_debug << phi.format(CSVFormat) << std::endl;
-      // csv_debug << "x_predicted";
-      // csv_debug << "\n";
-
-      // csv_debug << x_predicted.format(CSVFormat);
-      // csv_debug << "\n";
-      q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
-      // csv_debug << "q_dash";
-      // csv_debug << "\n";
-
-      // csv_debug << q_dash.format(CSVFormat);
-      // csv_debug << "\n";
-      p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
-      // csv_debug << "p_k_dash";
-      // csv_debug << "\n";
-      // csv_debug << p_k_dash.format(CSVFormat);
-
-      // csv_debug << "\n";
-      l_k = p_k_dash * c_t.transpose() *
-            (c_t * p_k_dash * c_t.transpose() + r).inverse();
-      // csv_debug << "p_k_dash*c_t" << std::endl;
-      // csv_debug << (p_k_dash * c_t.transpose()).format(CSVFormat) <<
-      // std::endl; csv_debug << "(c_t * p_k_dash * c_t.transpose() +
-      // r).inverse()"
-      // << std::endl;
-      // csv_debug << (c_t * p_k_dash * c_t.transpose() + r) << std::endl;
-      // csv_debug << (c_t * p_k_dash * c_t.transpose() + r).inverse()
-      // << std::endl;
-      // csv_debug << "l_k";
-      // csv_debug << "\n";
-
-      // csv_debug << l_k.format(CSVFormat);
-      // csv_debug << "\n";
-      w_k_hat = c_t * x_t;
-      x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
-      w_k_hat = c_t * x_predicted;
-      p_k = (Eigen::MatrixXd::Identity(2 * (WAVE_COMPONENTS + 1),
-                                       2 * (WAVE_COMPONENTS + 1)) -
-             (l_k * c_t)) *
-            p_k_dash;
-      // csv_debug << "p_k";
-      // csv_debug << "\n";
-      // csv_debug << p_k.format(CSVFormat);
-      // csv_debug << "\n";
-      x_t = x_predicted;
-      p_k_dash = p_k;
-      wave_msg.data = w_k_hat(0);
-      wave_predictor.publish(wave_msg);
-      wave_future_msg.data = 0.0;
-      for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-        freq(0) = freq_components[i];
-        phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)) -
-                   2 * M_PI * freq(0);
-        // time_ahead = (ros::Time::now().toNSec() * 1e-9) + 5.0;
-        if (sin((2 * M_PI * freq(0)) + phase(0)) != 0.0) {
-          amplitude(0) = x_t(2 * i) / sin((2 * M_PI * freq(0)) + phase(0));
-
-        } else {
-          amplitude(0) = 0.0;
-        }
-        wave_future_msg.data +=
-            amplitude(0) * sin((2 * M_PI * freq(0) * 5) + phase(0));
-      }
-      wave_future_msg.data += x_t(2 * WAVE_COMPONENTS);
-      wave_future.publish(wave_future_msg);
-    }
-    // std::cout << "Freq_components : " << std::endl;
-    for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-      // std::cout << freq_components[i] << std::endl;
-    }
-
     if (ros::isShuttingDown()) {
-      // csv_debug.close();
     }
-    loop_rate.sleep();
-    ros::spinOnce();
+    ros::spin();
   }
 
   return 0;
