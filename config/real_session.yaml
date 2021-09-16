@@ -6,19 +6,48 @@ startup_window: real_wave
 
 windows:
 
-  - real_wave:
+  # - real_wave:
 
-      layout: tiled
+  #     layout: tiled
 
-      panes:
-
-        - offshore_start
+  #     panes:
+  #       - offshore_start
   - fft_prediction:
       layout: tiled
 
       panes:
-       
         - roslaunch usv_estiplan gazebo_wave.launch
+  - wave_prediction_x:
+      layout: tiled
+
+      panes:
+        - rosrun usv_estiplan wave_prediction_node dof_name:"x"
+  - wave_prediction_y:
+      layout: tiled
+
+      panes:
+        - rosrun usv_estiplan wave_prediction_node _dof_name:y
+  - wave_prediction_z:
+      layout: tiled
+
+      panes:
+        - rosrun usv_estiplan wave_prediction_node _dof_name:z
+  - wave_prediction_roll:
+      layout: tiled
+
+      panes:
+        - rosrun usv_estiplan wave_prediction_node _dof_name:roll
+  - wave_prediction_pitch:
+      layout: tiled
+
+      panes:
+        - rosrun usv_estiplan wave_prediction_node --param dof_name:pitch
+  - wave_prediction_yaw:
+      layout: tiled
+
+      panes:
+        - rosrun usv_estiplan wave_prediction_node _dof_name:yaw
+
   # - recorder:
   #      layout: tiled
 

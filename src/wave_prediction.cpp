@@ -1,7 +1,7 @@
 // #include <fftw3.h>
+#include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "ros/ros.h"
-#include "sensor_msgs/Imu.h"
 #include "std_msgs/Float64.h"
 #include "usv_estiplan/Fftresult.h"
 #include <Eigen/Dense>
@@ -10,6 +10,8 @@
 #include <iostream>
 #include <queue>
 #include <sstream>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
 #include <unsupported/Eigen/MatrixFunctions>
 
 using namespace std;
@@ -18,12 +20,15 @@ using namespace std;
 #define IMAG 1
 
 const int WAVE_COMPONENTS = 20;
-const float SAMPLE_TIME = 0.01;
+int sampling_freq = 100;
+float sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
 usv_estiplan::Fftresult fft_msg{};
 double msg_time;
 std_msgs::Float64 wave_msg;
 std_msgs::Float64 wave_future_msg;
+string odom_topic_name;
+string dof_name;
 Eigen::VectorXd w_k_hat(1);
 Eigen::VectorXd w_k(1);
 Eigen::Vector2d x_i;                                       // X(i,0) single mode
@@ -65,8 +70,28 @@ Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 // row-0 is last, row-1 is current
 // true is present, false is notpresent
 
-void ImuCallback(sensor_msgs::Imu imu_data) {
-  w_k(0) = imu_data.angular_velocity.x;
+void OdomCallback(const geometry_msgs::PoseStamped &msg) {
+  tf2::Quaternion q(msg.pose.orientation.x, msg.pose.orientation.y,
+                    msg.pose.orientation.z, msg.pose.orientation.w);
+  tf2::Matrix3x3 m(q);
+  double roll, pitch, yaw;
+  m.getRPY(roll, pitch, yaw);
+  if (dof_name == "x") {
+    w_k(0) = msg.pose.position.x;
+  } else if (dof_name == "y") {
+    w_k(0) = msg.pose.position.y;
+  } else if (dof_name == "z") {
+    w_k(0) = msg.pose.position.z;
+  } else if (dof_name == "roll") {
+    w_k(0) = roll;
+  } else if (dof_name == "pitch") {
+    w_k(0) = pitch;
+  } else if (dof_name == "yaw") {
+    w_k(0) = yaw;
+  } else {
+    ROS_ERROR("dof_name was not specified, shutting down");
+    ros::shutdown();
+  }
 }
 
 void FftCallback(usv_estiplan::Fftresult in_msg) {
@@ -120,7 +145,7 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
     }
   }
   // updating Phi
-  phi = (a_t * SAMPLE_TIME).exp();
+  phi = (a_t * sample_time).exp();
   msg_time = ros::Time::now().toNSec();
   // for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
   //   csv_debug << freq_components[i] << ";" << parity_matrix[0][i] << ";"
@@ -152,15 +177,32 @@ int main(int argc, char **argv) {
     c_t(2 * i) = 1.0;
     c_t((2 * i) + 1) = 0.0;
   }
-  ros::init(argc, argv, "wave_prediction");
-  ros::NodeHandle estiplan;
+  ros::init(argc, argv, "wave_prediction", ros::init_options::AnonymousName);
+  ros::NodeHandle estiplan("~");
+  if (argc != 2) {
+    ROS_WARN("Specify the DOF arg in launch file");
+    return -1;
+  }
+  dof_name = argv[1];
+  if (!estiplan.getParam("/topics/sampling_freq", sampling_freq)) {
+    sample_time = 1 / sampling_freq;
+    ROS_WARN("sampling_freq loading failed");
+    return -1;
+  }
+  ROS_INFO("Are we here1?");
+  if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
+    ROS_WARN("WAVE_PRED:odom_topic loading failed");
+    return -1;
+  }
+
   ros::Subscriber sub = estiplan.subscribe("/fft_output/", 1000, FftCallback);
-  ros::Subscriber sub_imu = estiplan.subscribe("/wamv/imu", 1000, ImuCallback);
-  ros::Publisher wave_predictor =
-      estiplan.advertise<std_msgs::Float64>("/wave_prediction", 1000);
-  ros::Publisher wave_future =
-      estiplan.advertise<std_msgs::Float64>("/wave_future_5s", 1000);
-  ros::Rate loop_rate(1 / SAMPLE_TIME);
+  ros::Subscriber sub_pose =
+      estiplan.subscribe(odom_topic_name, 1000, OdomCallback);
+  ros::Publisher wave_predictor = estiplan.advertise<std_msgs::Float64>(
+      "/wave_prediction/" + dof_name, 1000);
+  ros::Publisher wave_future = estiplan.advertise<std_msgs::Float64>(
+      "/wave_future_5s/" + dof_name, 1000);
+  ros::Rate loop_rate(sampling_freq);
   double wave_output;
   double time_elap = 0;
   while (ros::ok()) {
@@ -178,7 +220,7 @@ int main(int argc, char **argv) {
 
       // csv_debug << x_predicted.format(CSVFormat);
       // csv_debug << "\n";
-      q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * SAMPLE_TIME;
+      q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
       // csv_debug << "q_dash";
       // csv_debug << "\n";
 
