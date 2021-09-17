@@ -1,135 +1,173 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root version="2.3.8">
  <tabbed_widget name="Main Window" parent="main_window">
-  <Tab tab_name="tab1" containers="1">
+  <Tab containers="1" tab_name="tab1">
    <Container>
-    <DockSplitter orientation="-" count="3" sizes="0.332957;0.334086;0.332957">
-     <DockSplitter orientation="|" count="2" sizes="0.5;0.5">
+    <DockSplitter sizes="0.332957;0.334086;0.332957" orientation="-" count="3">
+     <DockSplitter sizes="0.5;0.5" orientation="|" count="2">
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range bottom="11.060823" top="15.476092" left="0.000216" right="20.000172"/>
+        <range top="1993800945.247889" right="5.759924" left="-14.240156" bottom="-11749241062.043873"/>
         <limitY/>
-        <curve color="#03ff00" name="/uav1/rs_d435/color/base_detections/pose/position/x"/>
-        <curve color="#d62728" name="/wave_observer/x/data"/>
+        <curve name="/uav1/rs_d435/color/base_detections/pose/position/x" color="#03ff00"/>
+        <curve name="/wave_observer/x/data" color="#1f77b4"/>
        </plot>
       </DockArea>
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range bottom="-0.770923" top="0.808363" left="0.000216" right="20.000172"/>
+        <range top="0.824483" right="5.759846" left="-14.240126" bottom="-0.822244"/>
         <limitY/>
-        <curve color="#1f77b4" name="/uav1/rs_d435/color/base_detections/rpy/x"/>
-        <curve color="#9467bd" name="/wave_observer/roll/data"/>
-       </plot>
-      </DockArea>
-     </DockSplitter>
-     <DockSplitter orientation="|" count="2" sizes="0.5;0.5">
-      <DockArea name="...">
-       <plot style="Lines" mode="TimeSeries">
-        <range bottom="36.789306" top="43.651259" left="0.000216" right="20.000172"/>
-        <limitY/>
-        <curve color="#1ac938" name="/uav1/rs_d435/color/base_detections/pose/position/y"/>
-        <curve color="#5871ff" name="/wave_observer/y/data"/>
-       </plot>
-      </DockArea>
-      <DockArea name="...">
-       <plot style="Lines" mode="TimeSeries">
-        <range bottom="-1.270482" top="1.175795" left="0.000216" right="20.000172"/>
-        <limitY/>
-        <curve color="#d62728" name="/uav1/rs_d435/color/base_detections/rpy/y"/>
-        <curve color="#f14cc1" name="/wave_observer/pitch/data"/>
+        <curve name="/uav1/rs_d435/color/base_detections/rpy/x" color="#1f77b4"/>
+        <curve name="/wave_observer/roll/data" color="#9467bd"/>
        </plot>
       </DockArea>
      </DockSplitter>
-     <DockSplitter orientation="|" count="2" sizes="0.5;0.5">
+     <DockSplitter sizes="0.5;0.5" orientation="|" count="2">
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range bottom="7.167921" top="11.429484" left="0.000216" right="20.000172"/>
+        <range top="43.727122" right="5.759894" left="-14.240156" bottom="36.771019"/>
         <limitY/>
-        <curve color="#f14cc1" name="/uav1/rs_d435/color/base_detections/pose/position/z"/>
-        <curve color="#ff7f0e" name="/wave_observer/z/data"/>
+        <curve name="/uav1/rs_d435/color/base_detections/pose/position/y" color="#1ac938"/>
+        <curve name="/wave_observer/y/data" color="#5871ff"/>
        </plot>
       </DockArea>
       <DockArea name="...">
        <plot style="Lines" mode="TimeSeries">
-        <range bottom="-0.890459" top="1.152791" left="0.000216" right="20.000172"/>
+        <range top="1.118940" right="5.759874" left="-14.240126" bottom="-1.108637"/>
         <limitY/>
-        <curve color="#1ac938" name="/uav1/rs_d435/color/base_detections/rpy/z"/>
-        <curve color="#17becf" name="/wave_observer/yaw/data"/>
+        <curve name="/uav1/rs_d435/color/base_detections/rpy/y" color="#d62728"/>
+        <curve name="/wave_observer/pitch/data" color="#f14cc1"/>
+       </plot>
+      </DockArea>
+     </DockSplitter>
+     <DockSplitter sizes="0.5;0.5" orientation="|" count="2">
+      <DockArea name="...">
+       <plot style="Lines" mode="TimeSeries">
+        <range top="791020731129.475220" right="5.760137" left="-14.240156" bottom="-158504837043.408447"/>
+        <limitY/>
+        <curve name="/uav1/rs_d435/color/base_detections/pose/position/z" color="#f14cc1"/>
+        <curve name="/wave_observer/z/data" color="#ff7f0e"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot style="Lines" mode="TimeSeries">
+        <range top="1.323367" right="5.759991" left="-14.240126" bottom="-1.253162"/>
+        <limitY/>
+        <curve name="/uav1/rs_d435/color/base_detections/rpy/z" color="#1ac938"/>
+        <curve name="/wave_observer/yaw/data" color="#17becf"/>
        </plot>
       </DockArea>
      </DockSplitter>
     </DockSplitter>
    </Container>
   </Tab>
-  <Tab tab_name="tab2" containers="1">
+  <Tab containers="1" tab_name="tab2">
    <Container>
-    <DockSplitter orientation="-" count="2" sizes="0.500564;0.499436">
-     <DockArea name="...">
-      <plot style="Lines" mode="TimeSeries">
-       <range bottom="-1.280701" top="6.983334" left="0.000216" right="20.000172"/>
-       <limitY/>
-       <curve color="#bcbd22" name="/wave_future_5s/zeroth/y/data"/>
-       <curve color="#1f77b4" name="/wave_future_5s/zeroth/x/data"/>
-       <curve color="#d62728" name="/wave_future_5s/zeroth/z/data"/>
-      </plot>
-     </DockArea>
-     <DockArea name="...">
-      <plot style="Lines" mode="TimeSeries">
-       <range bottom="-1.401029" top="1.539083" left="0.000216" right="20.000172"/>
-       <limitY/>
-       <curve color="#1ac938" name="/wave_future_5s/zeroth/pitch/data"/>
-       <curve color="#f14cc1" name="/wave_future_5s/zeroth/yaw/data"/>
-       <curve color="#1f77b4" name="/wave_observer/roll/data"/>
-      </plot>
-     </DockArea>
-    </DockSplitter>
-   </Container>
-  </Tab>
-  <Tab tab_name="tab2" containers="1">
-   <Container>
-    <DockSplitter orientation="-" count="2" sizes="0.339346;0.660654">
-     <DockSplitter orientation="|" count="2" sizes="0.5;0.5">
-      <DockArea name="...">
-       <plot style="Lines" mode="TimeSeries">
-        <range bottom="-14.883172" top="1.159075" left="78.340581" right="98.330739"/>
-        <limitY/>
-        <curve color="#1f77b4" name="/wave_observer/roll/data"/>
-        <curve color="#d62728" name="/wave_future_5s/zeroth/roll/data"/>
-       </plot>
-      </DockArea>
-      <DockArea name="...">
-       <plot style="Lines" mode="TimeSeries">
-        <range bottom="0.000000" top="1.000000" left="0.000000" right="1.000000"/>
-        <limitY/>
-       </plot>
-      </DockArea>
-     </DockSplitter>
-     <DockSplitter orientation="|" count="2" sizes="0.5;0.5">
-      <DockSplitter orientation="-" count="2" sizes="0.500855;0.499145">
+    <DockSplitter sizes="1" orientation="-" count="1">
+     <DockSplitter sizes="0.361399;0.638601" orientation="|" count="2">
+      <DockSplitter sizes="0.500564;0.499436" orientation="-" count="2">
        <DockArea name="...">
         <plot style="Lines" mode="TimeSeries">
-         <range bottom="0.000000" top="1.000000" left="0.000000" right="1.000000"/>
+         <range top="6.891147" right="11.310035" left="-8.689401" bottom="0.419140"/>
          <limitY/>
+         <curve name="/wave_future/zeroth/y/data" color="#1f77b4"/>
         </plot>
        </DockArea>
        <DockArea name="...">
         <plot style="Lines" mode="TimeSeries">
-         <range bottom="0.000000" top="1.000000" left="0.000000" right="1.000000"/>
+         <range top="43.490895" right="11.309921" left="-8.689463" bottom="36.924340"/>
          <limitY/>
+         <curve name="/wave_observer/y/data" color="#d62728"/>
         </plot>
        </DockArea>
       </DockSplitter>
-      <DockSplitter orientation="-" count="2" sizes="0.500855;0.499145">
+      <DockSplitter sizes="0.500564;0.499436" orientation="-" count="2">
+       <DockSplitter sizes="0.502538;0.497462" orientation="|" count="2">
+        <DockArea name="...">
+         <plot style="Lines" mode="TimeSeries">
+          <range top="18405096949.713993" right="11.309900" left="-8.689422" bottom="4459174222.638752"/>
+          <limitY/>
+          <curve name="/wave_future/zeroth/x/data" color="#ff7f0e"/>
+         </plot>
+        </DockArea>
+        <DockArea name="...">
+         <plot style="Lines" mode="TimeSeries">
+          <range top="-22163852017.415047" right="11.310121" left="-8.689214" bottom="-1217596375638.094238"/>
+          <limitY/>
+          <curve name="/wave_future/zeroth/z/data" color="#9467bd"/>
+         </plot>
+        </DockArea>
+       </DockSplitter>
+       <DockSplitter sizes="0.502538;0.497462" orientation="|" count="2">
+        <DockArea name="...">
+         <plot style="Lines" mode="TimeSeries">
+          <range top="1850955070.710280" right="11.309853" left="-8.689515" bottom="-10147381316.755360"/>
+          <limitY/>
+          <curve name="/wave_observer/x/data" color="#1ac938"/>
+         </plot>
+        </DockArea>
+        <DockArea name="...">
+         <plot style="Lines" mode="TimeSeries">
+          <range top="660080210619.548340" right="11.310051" left="-8.689294" bottom="-131461093487.554688"/>
+          <limitY/>
+          <curve name="/wave_observer/z/data" color="#f14cc1"/>
+         </plot>
+        </DockArea>
+       </DockSplitter>
+      </DockSplitter>
+     </DockSplitter>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="tab3">
+   <Container>
+    <DockSplitter sizes="1" orientation="-" count="1">
+     <DockSplitter sizes="0.333117;0.333765;0.333117" orientation="|" count="3">
+      <DockSplitter sizes="0.500564;0.499436" orientation="-" count="2">
        <DockArea name="...">
         <plot style="Lines" mode="TimeSeries">
-         <range bottom="0.000000" top="1.000000" left="0.000000" right="1.000000"/>
+         <range top="1.442639" right="26.120193" left="6.120351" bottom="-1.467711"/>
          <limitY/>
+         <curve name="/wave_future/zeroth/pitch/data" color="#bcbd22"/>
         </plot>
        </DockArea>
        <DockArea name="...">
         <plot style="Lines" mode="TimeSeries">
-         <range bottom="0.000000" top="1.000000" left="0.000000" right="1.000000"/>
+         <range top="1.442639" right="26.120126" left="6.120292" bottom="-1.467711"/>
          <limitY/>
+         <curve name="/wave_observer/pitch/data" color="#17becf"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.500564;0.499436" orientation="-" count="2">
+       <DockArea name="...">
+        <plot style="Lines" mode="TimeSeries">
+         <range top="0.823215" right="26.120282" left="6.120594" bottom="-0.795003"/>
+         <limitY/>
+         <curve name="/wave_future/zeroth/roll/data" color="#1f77b4"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot style="Lines" mode="TimeSeries">
+         <range top="0.823215" right="26.120160" left="6.120569" bottom="-0.795003"/>
+         <limitY/>
+         <curve name="/wave_observer/roll/data" color="#d62728"/>
+        </plot>
+       </DockArea>
+      </DockSplitter>
+      <DockSplitter sizes="0.500564;0.499436" orientation="-" count="2">
+       <DockArea name="...">
+        <plot style="Lines" mode="TimeSeries">
+         <range top="1.117931" right="26.120337" left="6.120373" bottom="-0.848617"/>
+         <limitY/>
+         <curve name="/wave_future/zeroth/yaw/data" color="#d62728"/>
+        </plot>
+       </DockArea>
+       <DockArea name="...">
+        <plot style="Lines" mode="TimeSeries">
+         <range top="1.117931" right="26.120256" left="6.120323" bottom="-0.848617"/>
+         <limitY/>
+         <curve name="/wave_observer/yaw/data" color="#1ac938"/>
         </plot>
        </DockArea>
       </DockSplitter>

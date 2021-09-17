@@ -1,5 +1,6 @@
 <launch>
-<rosparam command="load" file="$(find usv_estiplan)/config/fake_estimate.yaml" />
+<rosparam command="load" file="$(find usv_estiplan)/config/artificial_config.yaml" />
+<rosparam command="load" file="$(find usv_estiplan)/config/kalman_config.yaml" />
 <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen" />
 <node name="wave_prediction_x" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="x"/>
 <node name="wave_prediction_y" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="y"/>

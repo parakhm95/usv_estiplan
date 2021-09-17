@@ -25,7 +25,7 @@ double sampling_freq = 100;
 double sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
 usv_estiplan::Fftarray fft_array{};
-double msg_time;
+double msg_time[WAVE_COMPONENTS];
 std_msgs::Float64 wave_msg;
 std_msgs::Float64 wave_future_zeroth_msg;
 std_msgs::Float64 wave_future_first_msg;
@@ -79,7 +79,8 @@ Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 
 void PredictWaveFuture(double pred_time, double &zeroth, double &first,
                        double &second) {
-  double t_k = (ros::Time::now().toNSec() - msg_time) * 1e-9;
+  double t_k = 0.0;
+  double sine_output = 0.0;
   zeroth = 0.0;
   first = 0.0;
   second = 0.0;
@@ -88,15 +89,16 @@ void PredictWaveFuture(double pred_time, double &zeroth, double &first,
     //------extracting frequency-----
     { freq(0) = freq_components[i]; }
 
+    //------extracting time----------
+    t_k = (ros::Time::now().toNSec() - msg_time[i]) * 1e-9;
+
     // --------------------------extracting phase------------------------
-    {
-      phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)) -
-                 2 * M_PI * freq(0);
-    }
+    { phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)); }
     // -------------------extracting amplitude-------------------------
     {
-      if (sin((2 * M_PI * freq(0)) + phase(0)) != 0.0) {
-        amplitude(0) = x_t(2 * i) / sin((2 * M_PI * freq(0)) + phase(0));
+      sine_output = sin(phase(0));
+      if (sine_output != 0.0) {
+        amplitude(0) = x_t(2 * i) / sine_output;
       } else {
         amplitude(0) = 0.0;
       }
@@ -219,6 +221,7 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
         spot_avlb += 1;
       }
       freq_components(i) = fft_array.frequency[spot_avlb];
+      msg_time[i] = ros::Time::now().toNSec();
       // changing A matrices
       a_i(1) = -pow(2 * M_PI * fft_array.frequency[spot_avlb], 2);
       a_t.block(2 * i, 2 * i, 2, 2) = a_i;
@@ -232,28 +235,10 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
   }
   // updating Phi
   phi = (a_t * sample_time).exp();
-  msg_time = ros::Time::now().toNSec();
 }
 
 int main(int argc, char **argv) {
 
-  r(0) = 0.05;
-  x_t(2 * WAVE_COMPONENTS) = 0.0;
-  x_t(2 * WAVE_COMPONENTS + 1) = 0.0;
-  a_i(0) = 0.0;
-  a_i(2) = 1.0;
-  a_i(3) = 0.0;
-  p_k(2 * WAVE_COMPONENTS + 1, 2 * WAVE_COMPONENTS + 1) = 10.0;
-  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-    q(i, i) = 0.01;
-  }
-  q(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS) = 0.001;
-  q((2 * WAVE_COMPONENTS) + 1, (2 * WAVE_COMPONENTS) + 1) = 0.001;
-
-  for (size_t i = 0; i < WAVE_COMPONENTS + 1; i++) {
-    c_t(2 * i) = 1.0;
-    c_t((2 * i) + 1) = 0.0;
-  }
   ros::init(argc, argv, "wave_prediction", ros::init_options::AnonymousName);
   ros::NodeHandle estiplan("~");
   if (argc != 2) {
@@ -272,6 +257,56 @@ int main(int argc, char **argv) {
   }
   if (!estiplan.getParam("/t_future", t_future)) {
     ROS_WARN("WAVE_PRED:t_future loading failed, using 0.0 default");
+  }
+  if (!estiplan.getParam("/" + dof_name + "/" + "r", r(0))) {
+    ROS_WARN("WAVE_PRED:KF_r loading failed, quitting");
+    return -1;
+  }
+  if (!estiplan.getParam("/" + dof_name + "/" + "x_t_2n",
+                         x_t(2 * WAVE_COMPONENTS))) {
+    ROS_WARN("WAVE_PRED:KF_x_t_2n loading failed, quitting");
+    return -1;
+  }
+  if (!estiplan.getParam("/" + dof_name + "/" + "x_t_2n_1",
+                         x_t(2 * WAVE_COMPONENTS + 1))) {
+    ROS_WARN("WAVE_PRED:KF_x_t_2n_1 loading failed, quitting");
+    return -1;
+  }
+  if (!estiplan.getParam("/" + dof_name + "/" + "p_k_2n",
+                         p_k(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
+    ROS_WARN("WAVE_PRED:KF_p_k_2n loading failed, quitting");
+    return -1;
+  }
+  if (!estiplan.getParam(
+          "/" + dof_name + "/" + "p_k_2n_1",
+          p_k(2 * WAVE_COMPONENTS + 1, 2 * WAVE_COMPONENTS + 1))) {
+    ROS_WARN("WAVE_PRED:KF_p_k_2n_1 loading failed, quitting");
+    return -1;
+  }
+  if (!estiplan.getParam("/" + dof_name + "/" + "q_2n",
+                         q(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
+    ROS_WARN("WAVE_PRED:KF_q_2n loading failed, quitting");
+    return -1;
+  }
+  if (!estiplan.getParam(
+          "/" + dof_name + "/" + "q_2n_1",
+          q((2 * WAVE_COMPONENTS) + 1, (2 * WAVE_COMPONENTS) + 1))) {
+    ROS_WARN("WAVE_PRED:KF_q_2n_1 loading failed, quitting");
+    return -1;
+  }
+  a_i(0) = 0.0;
+  a_i(2) = 1.0;
+  a_i(3) = 0.0;
+  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+    if (!estiplan.getParam("/" + dof_name + "/" + "q", q(i, i))) {
+      ROS_WARN("WAVE_PRED:KF_q loading failed, quitting");
+      return -1;
+    }
+  }
+
+  for (size_t i = 0; i < WAVE_COMPONENTS + 1; i++) {
+    c_t(2 * i) = 1.0;
+    c_t((2 * i) + 1) = 0.0;
   }
 
   ros::Subscriber sub = estiplan.subscribe("/fft_output/", 1000, FftCallback);
