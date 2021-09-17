@@ -36,6 +36,7 @@ ros::Publisher wave_future_first;
 ros::Publisher wave_future_second;
 string odom_topic_name;
 string dof_name;
+double t_future = 0.0;
 Eigen::VectorXd w_k_hat(1);
 Eigen::VectorXd w_k(1);
 Eigen::Vector2d x_i;                                       // X(i,0) single mode
@@ -168,7 +169,6 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     p_k_dash = p_k;
     wave_msg.data = w_k_hat(0);
     wave_observer.publish(wave_msg);
-    double t_future = 5.0;
     PredictWaveFuture(t_future, wave_future_zeroth_msg.data,
                       wave_future_first_msg.data, wave_future_second_msg.data);
     wave_future_zeroth.publish(wave_future_zeroth_msg);
@@ -270,6 +270,9 @@ int main(int argc, char **argv) {
     ROS_ERROR("WAVE_PRED:odom_topic loading failed");
     return -1;
   }
+  if (!estiplan.getParam("/t_future", t_future)) {
+    ROS_WARN("WAVE_PRED:t_future loading failed, using 0.0 default");
+  }
 
   ros::Subscriber sub = estiplan.subscribe("/fft_output/", 1000, FftCallback);
   ros::Subscriber sub_pose =
@@ -277,11 +280,11 @@ int main(int argc, char **argv) {
   wave_observer =
       estiplan.advertise<std_msgs::Float64>("/wave_observer/" + dof_name, 1000);
   wave_future_zeroth = estiplan.advertise<std_msgs::Float64>(
-      "/wave_future_5s/zeroth/" + dof_name, 1000);
+      "/wave_future/zeroth/" + dof_name, 1000);
   wave_future_first = estiplan.advertise<std_msgs::Float64>(
-      "/wave_future_5s/first/" + dof_name, 1000);
+      "/wave_future/first/" + dof_name, 1000);
   wave_future_second = estiplan.advertise<std_msgs::Float64>(
-      "/wave_future_5s/second/" + dof_name, 1000);
+      "/wave_future/second/" + dof_name, 1000);
   ros::ServiceServer prediction_srv = estiplan.advertiseService(
       "/wave_prediction/" + dof_name, PredictionServiceCallback);
   while (ros::ok()) {
