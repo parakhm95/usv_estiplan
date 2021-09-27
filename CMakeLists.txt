@@ -52,6 +52,7 @@ add_message_files(
   FILES
   Fftarray.msg
   Fftresult.msg
+  Wavefuture.msg
 )
 
 ## Generate services in the 'srv' folder

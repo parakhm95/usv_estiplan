@@ -6,6 +6,7 @@
 #include "usv_estiplan/Fftarray.h"
 #include "usv_estiplan/Fftresult.h"
 #include "usv_estiplan/PredictionOutput.h"
+#include "usv_estiplan/Wavefuture.h"
 #include <Eigen/Dense>
 #include <cmath>
 #include <fstream>
@@ -25,18 +26,16 @@ double sampling_freq = 100;
 double sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
 usv_estiplan::Fftarray fft_array{};
-double msg_time[WAVE_COMPONENTS];
+double msg_time;
 std_msgs::Float64 wave_msg;
-std_msgs::Float64 wave_future_zeroth_msg;
-std_msgs::Float64 wave_future_first_msg;
-std_msgs::Float64 wave_future_second_msg;
+usv_estiplan::Wavefuture wave_future_msg;
 ros::Publisher wave_observer;
-ros::Publisher wave_future_zeroth;
-ros::Publisher wave_future_first;
-ros::Publisher wave_future_second;
+ros::Publisher wave_future;
 string odom_topic_name;
 string dof_name;
 double t_future = 0.0;
+double pred_horizon = 0.0;
+bool horizon_loaded = false;
 Eigen::VectorXd w_k_hat(1);
 Eigen::VectorXd w_k(1);
 Eigen::Vector2d x_i;                                       // X(i,0) single mode
@@ -77,20 +76,21 @@ Eigen::VectorXd amplitude(1);
 // std::ofstream csv_debug;
 Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 
-void PredictWaveFuture(double pred_time, double &zeroth, double &first,
-                       double &second) {
+void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
+                       double &first, double &second) {
   double t_k = 0.0;
   double sine_output = 0.0;
   zeroth = 0.0;
   first = 0.0;
   second = 0.0;
+  time_of_msg = pred_time;
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
 
     //------extracting frequency-----
     { freq(0) = freq_components[i]; }
 
     //------extracting time----------
-    t_k = (ros::Time::now().toNSec() - msg_time[i]) * 1e-9;
+    // t_k = (ros::Time::now().toNSec() - msg_time[i]) * 1e-9;
 
     // --------------------------extracting phase------------------------
     { phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)); }
@@ -103,21 +103,19 @@ void PredictWaveFuture(double pred_time, double &zeroth, double &first,
         amplitude(0) = 0.0;
       }
     }
-
+    t_k = ((ros::Time::now().toNSec() - msg_time) * 1e-9) + pred_time;
     // --------------- zeroth ------------------
-    {
-      zeroth += amplitude(0) * sin((2 * M_PI * freq(0) * pred_time) + phase(0));
-    }
+    { zeroth += amplitude(0) * sin((2 * M_PI * freq(0) * t_k) + phase(0)); }
 
     // --------------- first --------------------
     {
       first += amplitude(0) * 2 * M_PI * freq(0) *
-               cos((2 * M_PI * freq(0) * pred_time) + phase(0));
+               cos((2 * M_PI * freq(0) * t_k) + phase(0));
     }
     // --------------- second --------------------
     {
       second += -amplitude(0) * pow(2 * M_PI * freq(0), 2) *
-                sin((2 * M_PI * freq(0) * pred_time) + phase(0));
+                sin((2 * M_PI * freq(0) * t_k) + phase(0));
     }
   }
   // ------------------- adding random noise component -----------------
@@ -127,7 +125,8 @@ void PredictWaveFuture(double pred_time, double &zeroth, double &first,
 bool PredictionServiceCallback(usv_estiplan::PredictionOutput::Request &req,
                                usv_estiplan::PredictionOutput::Response &res) {
   // ------------ predictions ----------------
-  PredictWaveFuture(req.pred_time, res.zeroth, res.first, res.second);
+  PredictWaveFuture(req.pred_time, req.pred_time, res.zeroth, res.first,
+                    res.second);
   res.response = "success";
   return true;
 }
@@ -169,13 +168,13 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
           p_k_dash;
     x_t = x_predicted;
     p_k_dash = p_k;
+    msg_time = ros::Time::now().toNSec();
     wave_msg.data = w_k_hat(0);
     wave_observer.publish(wave_msg);
-    PredictWaveFuture(t_future, wave_future_zeroth_msg.data,
-                      wave_future_first_msg.data, wave_future_second_msg.data);
-    wave_future_zeroth.publish(wave_future_zeroth_msg);
-    wave_future_first.publish(wave_future_first_msg);
-    wave_future_second.publish(wave_future_second_msg);
+    PredictWaveFuture(t_future, wave_future_msg.pred_time,
+                      wave_future_msg.zeroth, wave_future_msg.first,
+                      wave_future_msg.second);
+    wave_future.publish(wave_future_msg);
   }
 }
 
@@ -221,7 +220,6 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
         spot_avlb += 1;
       }
       freq_components(i) = fft_array.frequency[spot_avlb];
-      msg_time[i] = ros::Time::now().toNSec();
       // changing A matrices
       a_i(1) = -pow(2 * M_PI * fft_array.frequency[spot_avlb], 2);
       a_t.block(2 * i, 2 * i, 2, 2) = a_i;
@@ -314,18 +312,33 @@ int main(int argc, char **argv) {
       estiplan.subscribe(odom_topic_name, 1000, OdomCallback);
   wave_observer =
       estiplan.advertise<std_msgs::Float64>("/wave_observer/" + dof_name, 1000);
-  wave_future_zeroth = estiplan.advertise<std_msgs::Float64>(
-      "/wave_future/zeroth/" + dof_name, 1000);
-  wave_future_first = estiplan.advertise<std_msgs::Float64>(
-      "/wave_future/first/" + dof_name, 1000);
-  wave_future_second = estiplan.advertise<std_msgs::Float64>(
-      "/wave_future/second/" + dof_name, 1000);
-  ros::ServiceServer prediction_srv = estiplan.advertiseService(
-      "/wave_prediction/" + dof_name, PredictionServiceCallback);
+  wave_future = estiplan.advertise<usv_estiplan::Wavefuture>(
+      "/wave_future/" + dof_name, 1000);
+  // ros::ServiceServer prediction_srv = estiplan.advertiseService(
+  //     "/wave_prediction/" + dof_name, PredictionServiceCallback);
+  ros::Publisher prediction_publisher =
+      estiplan.advertise<usv_estiplan::Wavefuture>(
+          "/wave_prediction/" + dof_name, 1000);
+  ros::Rate loop_rate(100);
   while (ros::ok()) {
+    if (!horizon_loaded) {
+      if (!estiplan.getParam("/sim/pred_horizon", pred_horizon)) {
+        ROS_WARN("WAVE_PRED : pred_horizon loading failed");
+      }
+    }
+    double pred_time = 0.01;
+    for (size_t i = 0; i < pred_horizon; i++) {
+      PredictWaveFuture(pred_time, wave_future_msg.pred_time,
+                        wave_future_msg.zeroth, wave_future_msg.first,
+                        wave_future_msg.second);
+      prediction_publisher.publish(wave_future_msg);
+      pred_time += 0.01;
+    }
+
     if (ros::isShuttingDown()) {
     }
-    ros::spin();
+    ros::spinOnce();
+    loop_rate.sleep();
   }
 
   return 0;

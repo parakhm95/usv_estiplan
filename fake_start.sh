@@ -12,10 +12,10 @@ SCRIPT=$(readlink -f $0)
 
 SCRIPTPATH=`dirname $SCRIPT`
 
-cd "$SCRIPTPATH"/config
+cd "$SCRIPTPATH"/config/tmux
 
 
 
 # start tmuxinator
 
-tmuxinator start -p session.yaml
+tmuxinator start -p fake_session.yaml
