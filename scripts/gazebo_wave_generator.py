@@ -2,14 +2,18 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.msg import ModelState
+from geometry_msgs.msg import Vector3
 import numpy as np
 import tf
 import math
+import random
 
 model_msg = ModelState()
 tag_msg = PoseStamped()
+rpy_msg = Vector3()
 
 publish_tag_detections = True
+random_noise = True
 tag_topic = "/uav1/rs_d435/color/base_detections"
 gazebo_model_name = "wamv"
 tag_publish_rate = 30.0
@@ -26,6 +30,7 @@ yaw_wave = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.
 
 wave_pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1000)
 tag_pub = rospy.Publisher(tag_topic, PoseStamped, queue_size=1000)
+tag_rpy_pub = rospy.Publisher(tag_topic+'_rpy',Vector3,queue_size=1000)
 
 
 
@@ -58,24 +63,38 @@ def bridge():
             pitch += pitch_wave[i,1] * math.sin((2* math.pi *pitch_wave[i,0]*elap_time)+pitch_wave[i,2])
             yaw += yaw_wave[i,1] * math.sin((2* math.pi *yaw_wave[i,0]*elap_time)+yaw_wave[i,2])
 
-            quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
-#type(pose) = geometry_msgs.msg.Pose
+        quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
         model_msg.pose.orientation.x = quaternion[0]
         model_msg.pose.orientation.y = quaternion[1]
         model_msg.pose.orientation.z = quaternion[2]
         model_msg.pose.orientation.w = quaternion[3]
 
-        wave_pub.publish(model_msg)
+        # wave_pub.publish(model_msg)
         if(publish_tag_detections):
             tag_msg.pose.position.x = model_msg.pose.position.x
             tag_msg.pose.position.y = model_msg.pose.position.y
             tag_msg.pose.position.z = model_msg.pose.position.z
+            rpy_msg.x = roll
+            rpy_msg.y = pitch
+            rpy_msg.z = yaw
 
-            tag_msg.pose.orientation.w = model_msg.pose.orientation.w
-            tag_msg.pose.orientation.x = model_msg.pose.orientation.x
-            tag_msg.pose.orientation.y = model_msg.pose.orientation.y
-            tag_msg.pose.orientation.z = model_msg.pose.orientation.z
+
+            if(random_noise):
+                roll += -0.02 + 0.04*random.random()
+                pitch += -0.02 + 0.04*random.random()
+                yaw += -0.02 + 0.04*random.random()
+                quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+                tag_msg.pose.orientation.x = quaternion[0]
+                tag_msg.pose.orientation.y = quaternion[1]
+                tag_msg.pose.orientation.z = quaternion[2]
+                tag_msg.pose.orientation.w = quaternion[3]
+
+                rpy_msg.x = roll
+                rpy_msg.y = pitch
+                rpy_msg.z = yaw
+            
             tag_pub.publish(tag_msg)
+            tag_rpy_pub.publish(rpy_msg)
 
         # print("I am running")
             
