@@ -75,6 +75,7 @@ def bridge():
             tag_msg.pose.orientation.x = model_msg.pose.orientation.x
             tag_msg.pose.orientation.y = model_msg.pose.orientation.y
             tag_msg.pose.orientation.z = model_msg.pose.orientation.z
+            tag_pub.publish(tag_msg)
 
         # print("I am running")
             
