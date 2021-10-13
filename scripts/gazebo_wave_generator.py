@@ -9,10 +9,10 @@ import math
 model_msg = ModelState()
 tag_msg = PoseStamped()
 
-publish_tag_detections = False
+publish_tag_detections = True
 tag_topic = "/uav1/rs_d435/color/base_detections"
 gazebo_model_name = "wamv"
-tag_publish_rate = 25.0
+tag_publish_rate = 30.0
 wave_number = 10
 CONSTANT_OFFSET_X = 3.0
 CONSTANT_OFFSET_Y = 3.0
@@ -72,9 +72,9 @@ def bridge():
             tag_msg.pose.position.z = model_msg.pose.position.z
 
             tag_msg.pose.orientation.w = model_msg.pose.orientation.w
-            tag_msg.pose.orientation.x = model.msg.pose.orientation.x
-            tag_msg.pose.orientation.y = model.msg.pose.orientation.y
-            tag_msg.pose.orientation.z = model.msg.pose.orientation.Z
+            tag_msg.pose.orientation.x = model_msg.pose.orientation.x
+            tag_msg.pose.orientation.y = model_msg.pose.orientation.y
+            tag_msg.pose.orientation.z = model_msg.pose.orientation.z
 
         # print("I am running")
             
