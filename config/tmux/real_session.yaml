@@ -17,36 +17,36 @@ windows:
 
       panes:
         - roslaunch usv_estiplan gazebo_wave.launch
-  - wave_prediction_x:
-      layout: tiled
+  # - wave_prediction_x:
+  #     layout: tiled
 
-      panes:
-        - sleep 5;rosrun usv_estiplan wave_prediction_node dof_name:"x"
-  - wave_prediction_y:
-      layout: tiled
+  #     panes:
+  #       - sleep 5;rosrun usv_estiplan wave_prediction_node dof_name:"x"
+  # - wave_prediction_y:
+  #     layout: tiled
 
-      panes:
-        - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:y
-  - wave_prediction_z:
-      layout: tiled
+  #     panes:
+  #       - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:y
+  # - wave_prediction_z:
+  #     layout: tiled
 
-      panes:
-        - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:z
-  - wave_prediction_roll:
-      layout: tiled
+  #     panes:
+  #       - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:z
+  # - wave_prediction_roll:
+  #     layout: tiled
 
-      panes:
-        - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:roll
-  - wave_prediction_pitch:
-      layout: tiled
+  #     panes:
+  #       - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:roll
+  # - wave_prediction_pitch:
+  #     layout: tiled
 
-      panes:
-        - sleep 5;rosrun usv_estiplan wave_prediction_node --param dof_name:pitch
-  - wave_prediction_yaw:
-      layout: tiled
+  #     panes:
+  #       - sleep 5;rosrun usv_estiplan wave_prediction_node --param dof_name:pitch
+  # - wave_prediction_yaw:
+  #     layout: tiled
 
-      panes:
-        - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:yaw
+  #     panes:
+  #       - sleep 5;rosrun usv_estiplan wave_prediction_node _dof_name:yaw
 
   # - recorder:
   #      layout: tiled

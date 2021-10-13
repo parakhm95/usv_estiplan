@@ -14,14 +14,14 @@ tag_topic = "/uav1/rs_d435/color/base_detections"
 gazebo_model_name = "wamv"
 tag_publish_rate = 25.0
 wave_number = 10
-CONSTANT_OFFSET_X = 0.0
-CONSTANT_OFFSET_Y = 0.0
-CONSTANT_OFFSET_Z = 6.0
+CONSTANT_OFFSET_X = 3.0
+CONSTANT_OFFSET_Y = 3.0
+CONSTANT_OFFSET_Z = 2.0
 elap_time =  0.0000
 # freq, amp, phase
-z_wave = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
-roll_wave = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
-pitch_wave =np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
+z_wave = np.array([[0.1,0.3,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
+roll_wave = np.array([[0.7,0.08,0.0],[0.1,0.02,0.0],[0.21,0.06,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
+pitch_wave =np.array([[0.4,0.08,0.0],[0.15,0.03,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
 yaw_wave = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
 
 wave_pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1000)
@@ -41,6 +41,8 @@ def bridge():
     # rospy.Subscriber("/uav1/rs_d435/color/base_detections", PoseStamped, callback)
     rate = rospy.Rate(tag_publish_rate)
     while not rospy.is_shutdown():
+        model_msg.model_name = gazebo_model_name
+        model_msg.reference_frame = 'world'
         model_msg.pose.position.x = CONSTANT_OFFSET_X
         model_msg.pose.position.y = CONSTANT_OFFSET_Y
         model_msg.pose.position.z = CONSTANT_OFFSET_Z
@@ -48,7 +50,7 @@ def bridge():
         roll = 0.0
         pitch = 0.0
         yaw = 0.0
-        model_msg.pose.position.z = 0.0
+        # model_msg.pose.position.z = 0.0
         elap_time =  rospy.Time.now().to_sec()
         for i in range(wave_number):
             model_msg.pose.position.z += z_wave[i,1] * math.sin((2* math.pi *z_wave[i,0]*elap_time)+z_wave[i,2])
@@ -73,8 +75,10 @@ def bridge():
             tag_msg.pose.orientation.x = model.msg.pose.orientation.x
             tag_msg.pose.orientation.y = model.msg.pose.orientation.y
             tag_msg.pose.orientation.z = model.msg.pose.orientation.Z
+
+        # print("I am running")
             
-        rospy.spin()
+        # rospy.spin()
         rate.sleep()
 
 if __name__ == '__main__':
