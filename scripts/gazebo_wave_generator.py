@@ -46,7 +46,6 @@ def bridge():
     # rospy.Subscriber("/uav1/rs_d435/color/base_detections", PoseStamped, callback)
     rate = rospy.Rate(tag_publish_rate)
     while not rospy.is_shutdown():
-        model_msg.model_name = gazebo_model_name
         model_msg.reference_frame = 'world'
         model_msg.pose.position.x = CONSTANT_OFFSET_X
         model_msg.pose.position.y = CONSTANT_OFFSET_Y
@@ -68,12 +67,13 @@ def bridge():
         model_msg.pose.orientation.y = quaternion[1]
         model_msg.pose.orientation.z = quaternion[2]
         model_msg.pose.orientation.w = quaternion[3]
+        model_msg.model_name = gazebo_model_name
+        wave_pub.publish(model_msg)
 
-        # wave_pub.publish(model_msg)
         if(publish_tag_detections):
             tag_msg.pose.position.x = model_msg.pose.position.x
             tag_msg.pose.position.y = model_msg.pose.position.y
-            tag_msg.pose.position.z = model_msg.pose.position.z
+            tag_msg.pose.position.z = model_msg.pose.position.z + 1.30 # 1.5 is the height of the landing platform from boat origin
             rpy_msg.x = roll
             rpy_msg.y = pitch
             rpy_msg.z = yaw
@@ -92,7 +92,11 @@ def bridge():
                 rpy_msg.x = roll
                 rpy_msg.y = pitch
                 rpy_msg.z = yaw
-            
+
+                model_msg.pose.position.z = tag_msg.pose.position.z
+                model_msg.model_name = "sphere"
+
+            wave_pub.publish(model_msg)
             tag_pub.publish(tag_msg)
             tag_rpy_pub.publish(rpy_msg)
 
