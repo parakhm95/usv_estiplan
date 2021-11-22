@@ -1,23 +1,26 @@
+#include <fftw3.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <queue>
+#include <sstream>
+
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "ros/ros.h"
 #include "usv_estiplan/Fftarray.h"
 #include "usv_estiplan/Fftresult.h"
-#include <cmath>
-#include <fftw3.h>
-#include <fstream>
-#include <iostream>
-#include <queue>
-#include <sstream>
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
 
 using namespace std;
 
 #define REAL 0
 #define IMAG 1
 
-const int MAX_QUEUE = 10000;
+float freq_accuracy = 0.01;
+int MAX_QUEUE = 10000;
 int samp_freq = 100;
 float fft_interval = 0.2;
 const int WAVE_COMPONENTS = 20;
@@ -58,8 +61,8 @@ void odomCallback(const geometry_msgs::PoseStamped &msg) {
   queue_things(yaw_queue, yaw);
 }
 void convert_que_to_array(queue<float> dupl, fftw_complex *fftw_in) {
-  int fft_size = dupl.size(); // using dupl.size() multiple times was causing
-                              // for loop to use garbage i values.
+  int fft_size = dupl.size();  // using dupl.size() multiple times was causing
+                               // for loop to use garbage i values.
   for (int i = 0; i < fft_size; i++) {
     fftw_in[i][REAL] = dupl.front();
     fftw_in[i][IMAG] = 0.0;
@@ -72,7 +75,6 @@ bool sortcol(const vector<double> &v1, const vector<double> &v2) {
 }
 
 int main(int argc, char **argv) {
-
   ros::init(argc, argv, "fft_estimate");
   ros::NodeHandle estiplan("~");
   if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
@@ -90,20 +92,24 @@ int main(int argc, char **argv) {
   if (!estiplan.getParam("/fft_threshold", fft_threshold)) {
     ROS_ERROR("fft_threshold loading failed, using 0.02 default");
   }
+  if (!estiplan.getParam("/freq_accuracy", freq_accuracy)) {
+    ROS_ERROR("freq_accuracy loading failed, using 0.01 default");
+  }
+  MAX_QUEUE = samp_freq / freq_accuracy;
   ros::Subscriber sub = estiplan.subscribe(odom_topic_name, 1000, odomCallback);
   ros::Publisher fft_transform =
       estiplan.advertise<usv_estiplan::Fftresult>("/fft_output/", 1000);
   ros::Rate loop_rate(1 / fft_interval);
   ofstream fft_output_capt;
   fft_output_capt.open("fft_data.csv");
-  x_queue.push(0);     // to prevent core dump
-  y_queue.push(0);     // to prevent core dump
-  z_queue.push(0);     // to prevent core dump
-  roll_queue.push(0);  // to prevent core dump
-  pitch_queue.push(0); // to prevent core dump
-  yaw_queue.push(0);   // to prevent core dump
+  x_queue.push(0);      // to prevent core dump
+  y_queue.push(0);      // to prevent core dump
+  z_queue.push(0);      // to prevent core dump
+  roll_queue.push(0);   // to prevent core dump
+  pitch_queue.push(0);  // to prevent core dump
+  yaw_queue.push(0);    // to prevent core dump
   for (size_t i = 0; i < MAX_QUEUE / 2; i++) {
-    wave_vec.push_back({0, 0, 0}); // Freq, Amp, Phase
+    wave_vec.push_back({0, 0, 0});  // Freq, Amp, Phase
   }
   while (ros::ok()) {
     int fft_size = 0;
@@ -161,7 +167,6 @@ void executeFft(queue<float> queue_in, fftw_complex *out_fftw) {
 }
 
 usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw) {
-
   for (int i = 0; i < fft_size / 2; i++) {
     // Frequency
     wave_vec[i][0] = i * float(samp_freq / 2) / (fft_size / 2);
@@ -175,17 +180,16 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw) {
     // Its phase is set to PI/2 to prevent it from disappearing
     if (i == 0) {
       wave_vec[i][1] = wave_vec[i][1] / 2;
-      wave_vec[i][2] = M_PI/2;
+      wave_vec[i][2] = M_PI / 2;
     }
   }
   sort(wave_vec.begin(), wave_vec.end(), sortcol);
   usv_estiplan::Fftarray fft_array;
   //------------Fix for Issue #8-----------
   double fft_threshold_ref = 0.0;
-  if(wave_vec[0][0]==0){
+  if (wave_vec[0][0] == 0) {
     fft_threshold_ref = fft_threshold * wave_vec[1][1];
-  }
-  else{
+  } else {
     fft_threshold_ref = fft_threshold * wave_vec[0][1];
   }
 
