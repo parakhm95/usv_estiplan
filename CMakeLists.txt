@@ -176,6 +176,7 @@ target_link_libraries(wave_generation_node
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/gazebo_wave_generator.py
+  scripts/april_tag_bridge.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

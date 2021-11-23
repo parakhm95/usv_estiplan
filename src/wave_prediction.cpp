@@ -1,4 +1,15 @@
 // #include <fftw3.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+
+#include <Eigen/Dense>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <queue>
+#include <sstream>
+#include <unsupported/Eigen/MatrixFunctions>
+
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "ros/ros.h"
@@ -7,15 +18,6 @@
 #include "usv_estiplan/Fftresult.h"
 #include "usv_estiplan/PredictionOutput.h"
 #include "usv_estiplan/Wavefuture.h"
-#include <Eigen/Dense>
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <queue>
-#include <sstream>
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <unsupported/Eigen/MatrixFunctions>
 using namespace std;
 
 #define REAL 0
@@ -38,10 +40,10 @@ double pred_horizon = 0.0;
 bool horizon_loaded = false;
 Eigen::VectorXd w_k_hat(1);
 Eigen::VectorXd w_k(1);
-Eigen::Vector2d x_i;                                       // X(i,0) single mode
-Eigen::VectorXd x_t(2 * (WAVE_COMPONENTS + 1), 1);         // X(t_0) mode vector
-Eigen::VectorXd l_k(2 * (WAVE_COMPONENTS + 1), 1);         // L_k Kalman gain
-Eigen::VectorXd x_predicted(2 * (WAVE_COMPONENTS + 1), 1); // X_k+1 predicted
+Eigen::Vector2d x_i;                                // X(i,0) single mode
+Eigen::VectorXd x_t(2 * (WAVE_COMPONENTS + 1), 1);  // X(t_0) mode vector
+Eigen::VectorXd l_k(2 * (WAVE_COMPONENTS + 1), 1);  // L_k Kalman gain
+Eigen::VectorXd x_predicted(2 * (WAVE_COMPONENTS + 1), 1);  // X_k+1 predicted
 // A(t_0)
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
     a_t = Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1),
@@ -57,8 +59,8 @@ Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
     p_k = Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1),
                                 2 * (WAVE_COMPONENTS + 1));
 
-Eigen::MatrixXd c_t(1, 2 * (WAVE_COMPONENTS + 1)); // C(t_0)
-Eigen::Matrix2d a_i;                               // A_i(t_0)
+Eigen::MatrixXd c_t(1, 2 * (WAVE_COMPONENTS + 1));  // C(t_0)
+Eigen::Matrix2d a_i;                                // A_i(t_0)
 Eigen::VectorXd r(1);
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
     q_dash;
@@ -85,7 +87,6 @@ void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
   second = 0.0;
   time_of_msg = pred_time;
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-
     //------extracting frequency-----
     { freq(0) = freq_components[i]; }
 
@@ -208,8 +209,8 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
       if (trunc(1000. * fft_array.frequency[i]) ==
               trunc(1000. * freq_components(j)) &&
           (parity_matrix[0][j] != true) && (parity_matrix[1][i] != true)) {
-        parity_matrix[0][j] = true; // row-0 for last_msg
-        parity_matrix[1][i] = true; // row-1 for new_msg
+        parity_matrix[0][j] = true;  // row-0 for last_msg
+        parity_matrix[1][i] = true;  // row-1 for new_msg
       }
     }
   }
@@ -236,7 +237,6 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
 }
 
 int main(int argc, char **argv) {
-
   ros::init(argc, argv, "wave_prediction", ros::init_options::AnonymousName);
   ros::NodeHandle estiplan("~");
   if (argc != 2) {
