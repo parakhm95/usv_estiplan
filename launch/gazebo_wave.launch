@@ -2,13 +2,13 @@
 <rosparam command="load" file="$(find usv_estiplan)/config/fft_config.yaml" />
 <rosparam command="load" file="$(find usv_estiplan)/config/kalman_config.yaml" />
 <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen"/>
-<node name="wave_prediction_x" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="x"/>
-<node name="wave_prediction_y" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="y"/>
-<node name="wave_prediction_z" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="z"/>
+<!-- <node name="wave_prediction_x" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="x"/> -->
+<!-- <node name="wave_prediction_y" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="y"/> -->
+<!-- <node name="wave_prediction_z" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="z"/> -->
 <node name="wave_prediction_roll" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="roll"/>
 <node name="wave_prediction_pitch" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="pitch"/>
-<node name="wave_prediction_yaw" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="yaw"/>
+<!-- <node name="wave_prediction_yaw" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="yaw"/> -->
 <node name="gazebo_wave_generator" pkg="usv_estiplan" type="gazebo_wave_generator.py" output="screen"/>
-<node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" output="screen"/>
+<node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen"/>
 <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" />
 </launch>

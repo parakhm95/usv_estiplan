@@ -33,6 +33,7 @@ tag_pub = rospy.Publisher(tag_topic, PoseStamped, queue_size=1000)
 def callback(msg):
     for i in range(len(msg.detections)):
         if(msg.detections[i].id[0] == 2):
+            tag_msg.header.stamp = rospy.Time.now()
             tag_msg.header.frame_id = 'uav1/gps_origin'
             tag_msg.pose.position.x = msg.detections[i].pose.pose.pose.position.x
             tag_msg.pose.position.y = msg.detections[i].pose.pose.pose.position.y

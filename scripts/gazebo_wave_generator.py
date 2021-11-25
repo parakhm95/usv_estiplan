@@ -57,7 +57,7 @@ def bridge():
         # model_msg.pose.position.z = 0.0
         elap_time =  rospy.Time.now().to_sec()
         for i in range(wave_number):
-            model_msg.pose.position.z += z_wave[i,1] * math.sin((2* math.pi *z_wave[i,0]*elap_time)+z_wave[i,2])
+            # model_msg.pose.position.z += z_wave[i,1] * math.sin((2* math.pi *z_wave[i,0]*elap_time)+z_wave[i,2])
             roll += roll_wave[i,1] * math.sin((2* math.pi *roll_wave[i,0]*elap_time)+roll_wave[i,2])
             pitch += pitch_wave[i,1] * math.sin((2* math.pi *pitch_wave[i,0]*elap_time)+pitch_wave[i,2])
             yaw += yaw_wave[i,1] * math.sin((2* math.pi *yaw_wave[i,0]*elap_time)+yaw_wave[i,2])

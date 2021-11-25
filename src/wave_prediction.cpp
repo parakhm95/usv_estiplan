@@ -13,9 +13,9 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "ros/ros.h"
-#include "std_msgs/Float64.h"
 #include "usv_estiplan/Fftarray.h"
 #include "usv_estiplan/Fftresult.h"
+#include "usv_estiplan/Float64Stamped.h"
 #include "usv_estiplan/PredictionOutput.h"
 #include "usv_estiplan/Wavefuture.h"
 using namespace std;
@@ -29,7 +29,7 @@ double sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
 usv_estiplan::Fftarray fft_array{};
 double msg_time;
-std_msgs::Float64 wave_msg;
+usv_estiplan::Float64Stamped wave_msg;
 usv_estiplan::Wavefuture wave_future_msg;
 ros::Publisher wave_observer;
 ros::Publisher wave_future;
@@ -171,10 +171,12 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     p_k_dash = p_k;
     msg_time = ros::Time::now().toNSec();
     wave_msg.data = w_k_hat(0);
+    wave_msg.header.stamp = ros::Time::now();
     wave_observer.publish(wave_msg);
     PredictWaveFuture(t_future, wave_future_msg.pred_time,
                       wave_future_msg.zeroth, wave_future_msg.first,
                       wave_future_msg.second);
+    wave_future_msg.header.stamp = ros::Time::now();
     wave_future.publish(wave_future_msg);
   }
 }
@@ -310,8 +312,8 @@ int main(int argc, char **argv) {
   ros::Subscriber sub = estiplan.subscribe("/fft_output/", 1000, FftCallback);
   ros::Subscriber sub_pose =
       estiplan.subscribe(odom_topic_name, 1000, OdomCallback);
-  wave_observer =
-      estiplan.advertise<std_msgs::Float64>("/wave_observer/" + dof_name, 1000);
+  wave_observer = estiplan.advertise<usv_estiplan::Float64Stamped>(
+      "/wave_observer/" + dof_name, 1000);
   wave_future = estiplan.advertise<usv_estiplan::Wavefuture>(
       "/wave_future/" + dof_name, 1000);
   // ros::ServiceServer prediction_srv = estiplan.advertiseService(
@@ -324,6 +326,8 @@ int main(int argc, char **argv) {
     if (!horizon_loaded) {
       if (!estiplan.getParam("/sim/pred_horizon", pred_horizon)) {
         ROS_WARN("WAVE_PRED : pred_horizon loading failed");
+      } else {
+        horizon_loaded = true;
       }
     }
     double pred_time = 0.01;

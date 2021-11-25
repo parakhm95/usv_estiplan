@@ -13,6 +13,7 @@
 #include "ros/ros.h"
 #include "usv_estiplan/Fftarray.h"
 #include "usv_estiplan/Fftresult.h"
+#include "usv_estiplan/Float64Stamped.h"
 
 using namespace std;
 
@@ -34,6 +35,7 @@ queue<float> yaw_queue;
 geometry_msgs::PoseStamped pose_data{};
 usv_estiplan::Fftresult fft_result{};
 usv_estiplan::Fftarray fft_array{};
+usv_estiplan::Float64Stamped accuracy_msg;
 vector<vector<double>> wave_vec;
 string odom_topic_name;
 
@@ -99,6 +101,8 @@ int main(int argc, char **argv) {
   ros::Subscriber sub = estiplan.subscribe(odom_topic_name, 1000, odomCallback);
   ros::Publisher fft_transform =
       estiplan.advertise<usv_estiplan::Fftresult>("/fft_output/", 1000);
+  ros::Publisher fft_accuracy_pub =
+      estiplan.advertise<usv_estiplan::Float64Stamped>("/fft_accuracy", 1000);
   ros::Rate loop_rate(1 / fft_interval);
   ofstream fft_output_capt;
   fft_output_capt.open("fft_data.csv");
@@ -133,9 +137,10 @@ int main(int argc, char **argv) {
     fftw_complex out_fftw_yaw[fft_size] = {};
     executeFft(yaw_queue, out_fftw_yaw);
 
-    cout << "FFT accuracy(Hz) : " << float(samp_freq / 2.0f) / (fft_size / 2.0f)
-         << endl;
-
+    accuracy_msg.data = float(samp_freq / 2.0f) / (fft_size / 2.0f);
+    accuracy_msg.header.stamp = ros::Time::now();
+    fft_accuracy_pub.publish(accuracy_msg);
+    cout << "FFT accuracy(Hz) : " << accuracy_msg.data << endl;
     fft_result.header.stamp = ros::Time::now();
     fft_result.x = processFft(fft_size, out_fftw_x);
     fft_result.y = processFft(fft_size, out_fftw_y);
