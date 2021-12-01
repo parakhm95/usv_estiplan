@@ -21,17 +21,21 @@ wave_number = 10
 CONSTANT_OFFSET_X = 3.0
 CONSTANT_OFFSET_Y = 3.0
 CONSTANT_OFFSET_Z = 2.0
-elap_time =  0.0000
+elap_time = 0.0000
 # freq, amp, phase
-z_wave = np.array([[0.1,0.3,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
-roll_wave = np.array([[0.1,0.18,0.0],[0.13,0.02,0.0],[0.011,0.06,0.0],[0.05,0.2,0.0],[0.03,0.28,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
-pitch_wave =np.array([[0.1,0.18,0.0],[0.15,0.03,0.0],[0.08,0.08,0.0],[0.03,0.2,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
-yaw_wave = np.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]])
+z_wave = np.array([[0.1, 0.3, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [
+                  0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+roll_wave = np.array([[0.1, 0.18, 0.0], [0.13, 0.02, 0.0], [0.011, 0.06, 0.0], [0.05, 0.2, 0.0], [
+                     0.03, 0.28, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+pitch_wave = np.array([[0.1, 0.18, 0.0], [0.15, 0.03, 0.0], [0.08, 0.08, 0.0], [0.03, 0.2, 0.0], [
+                      0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+yaw_wave = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [
+                    0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 
-wave_pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1000)
+wave_pub = rospy.Publisher('/gazebo/set_model_state',
+                           ModelState, queue_size=1000)
 tag_pub = rospy.Publisher(tag_topic, PoseStamped, queue_size=1000)
-tag_rpy_pub = rospy.Publisher(tag_topic+'_rpy',Vector3,queue_size=1000)
-
+tag_rpy_pub = rospy.Publisher(tag_topic+'_rpy', Vector3, queue_size=1000)
 
 
 def callback(msg):
@@ -40,6 +44,7 @@ def callback(msg):
     pose_msg.z = msg.pose.position.z
     pose_msg.heading = 0.0
     wave_pub.publish(pose_msg)
+
 
 def bridge():
     rospy.init_node('gazebo_wave_generator', anonymous=True)
@@ -55,12 +60,17 @@ def bridge():
         pitch = 0.0
         yaw = 0.0
         # model_msg.pose.position.z = 0.0
-        elap_time =  rospy.Time.now().to_sec()
+        elap_time = rospy.Time.now().to_sec()
         for i in range(wave_number):
             # model_msg.pose.position.z += z_wave[i,1] * math.sin((2* math.pi *z_wave[i,0]*elap_time)+z_wave[i,2])
-            roll += roll_wave[i,1] * math.sin((2* math.pi *roll_wave[i,0]*elap_time)+roll_wave[i,2])
-            pitch += pitch_wave[i,1] * math.sin((2* math.pi *pitch_wave[i,0]*elap_time)+pitch_wave[i,2])
-            yaw += yaw_wave[i,1] * math.sin((2* math.pi *yaw_wave[i,0]*elap_time)+yaw_wave[i,2])
+            roll += roll_wave[i, 1] * \
+                math.sin(
+                    (2 * math.pi * roll_wave[i, 0]*elap_time)+roll_wave[i, 2])
+            pitch += pitch_wave[i, 1] * math.sin(
+                (2 * math.pi * pitch_wave[i, 0]*elap_time)+pitch_wave[i, 2])
+            yaw += yaw_wave[i, 1] * \
+                math.sin(
+                    (2 * math.pi * yaw_wave[i, 0]*elap_time)+yaw_wave[i, 2])
 
         quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
         model_msg.pose.orientation.x = quaternion[0]
@@ -73,17 +83,18 @@ def bridge():
         if(publish_tag_detections):
             tag_msg.pose.position.x = model_msg.pose.position.x
             tag_msg.pose.position.y = model_msg.pose.position.y
-            tag_msg.pose.position.z = model_msg.pose.position.z + 1.30 # 1.5 is the height of the landing platform from boat origin
+            # 1.5 is the height of the landing platform from boat origin
+            tag_msg.pose.position.z = model_msg.pose.position.z + 1.30
             rpy_msg.x = roll
             rpy_msg.y = pitch
             rpy_msg.z = yaw
-
 
             if(random_noise):
                 roll += -0.02 + 0.04*random.random()
                 pitch += -0.02 + 0.04*random.random()
                 yaw += -0.02 + 0.04*random.random()
-                quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+                quaternion = tf.transformations.quaternion_from_euler(
+                    roll, pitch, yaw)
                 tag_msg.pose.orientation.x = quaternion[0]
                 tag_msg.pose.orientation.y = quaternion[1]
                 tag_msg.pose.orientation.z = quaternion[2]
@@ -101,9 +112,10 @@ def bridge():
             tag_rpy_pub.publish(rpy_msg)
 
         # print("I am running")
-            
+
         # rospy.spin()
         rate.sleep()
+
 
 if __name__ == '__main__':
     try:
