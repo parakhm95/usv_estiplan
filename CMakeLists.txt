@@ -153,6 +153,9 @@ add_executable(wave_generation_node src/wave_generator.cpp)
 FIND_LIBRARY(fftw3_LIBRARIES fftw3 /usr/local/bin/fftw-wisdom)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
+add_dependencies(fft_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(wave_prediction_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(wave_generation_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(fft_node
   ${catkin_LIBRARIES}
