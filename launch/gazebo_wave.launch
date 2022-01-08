@@ -1,14 +1,42 @@
 <launch>
-<rosparam command="load" file="$(find usv_estiplan)/config/fft_config.yaml" />
-<rosparam command="load" file="$(find usv_estiplan)/config/kalman_config.yaml" />
-<node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen"/>
-<!-- <node name="wave_prediction_x" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="x"/> -->
-<!-- <node name="wave_prediction_y" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="y"/> -->
-<!-- <node name="wave_prediction_z" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="z"/> -->
-<node name="wave_prediction_roll" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="roll"/>
-<node name="wave_prediction_pitch" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="pitch"/>
-<!-- <node name="wave_prediction_yaw" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="yaw"/> -->
-<node name="gazebo_wave_generator" pkg="usv_estiplan" type="gazebo_wave_generator.py" output="screen"/>
-<node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen"/>
+<arg name="UAV_NAME" default="$(env UAV_NAME)" />
+<arg name="SAMPLING_FREQ" value="20" />
+<arg name="ODOM_TOPIC" value="rs_d435/color/base_detections" />
+<arg name="FFT_TOPIC" value="fft_output" />
+<arg name="T_FUTURE" value="1.0" />
+<group ns="$(arg UAV_NAME)">
+
+    <!-- Params that are common to all the nodes -->
+    <param name="~sampling_freq" value="$(arg SAMPLING_FREQ)" />
+    <param name="~t_future" value="$(arg T_FUTURE)" />
+
+    <!-- FFT Node -->
+    <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen">
+        <rosparam command="load" file="$(find usv_estiplan)/config/fft_config.yaml" />
+        <remap from="~odom_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_out" to="$(arg FFT_TOPIC)" />
+    </node>
+
+    <!-- Roll wave prediction node -->
+    <node name="wave_prediction_roll" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="roll">
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_roll.yaml" />
+
+        <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_in" to="$(arg FFT_TOPIC)" />
+    </node>
+
+    <!-- Pitch wave prediction node -->
+    <node name="wave_prediction_pitch" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="pitch">
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pitch.yaml" />
+        <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_in" to="$(arg FFT_TOPIC)" />
+    </node>
+    
+    <!-- Wave generator node -->
+    <node name="gazebo_wave_generator" pkg="usv_estiplan" type="gazebo_wave_generator.py" output="screen"/>
+
+    <!-- April tag brige -->
+    <node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen"/>
+</group>
 <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" />
 </launch>

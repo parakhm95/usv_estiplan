@@ -1,8 +1,5 @@
-topics:
-  odom: "/uav1/rs_d435/color/base_detections"
-  sampling_freq: 20
 # dof_name: "x"
 freq_accuracy: 0.01
 fft_interval: 5.0 # 5 seconds or 0.2 Hz
 fft_threshold: 0.02 # Amplitude less than 2% of max is discarded
-t_future: 1.0 # how much further into the future do you want to predict for wave_future topic
+# t_future: 1.0 # how much further into the future do you want to predict for wave_future topic

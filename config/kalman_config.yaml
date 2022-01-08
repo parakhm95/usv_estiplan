@@ -16,33 +16,6 @@ y:
   q_2n: 0.001 # q for 2n
   q_2n_1: 0.001 # q for 2n+1
   q: 0.001 # q upto 2n
-z:
-  r: 0.05
-  x_t_2n: 20.0 # x for 2n
-  x_t_2n_1: 20.0 # x for 2n+1
-  p_k_2n: 1.0 # p for 2n
-  p_k_2n_1: 1.0 # p for 2n+1
-  q_2n: 0.001 # q for 2n
-  q_2n_1: 0.001 # q for 2n+1
-  q: 0.001 # q upto 2n
-roll:
-  r: 0.05
-  x_t_2n: 0.0 # x for 2n
-  x_t_2n_1: 0.0 # x for 2n+1
-  p_k_2n: 10.0 # p for 2n
-  p_k_2n_1: 10.0 # p for 2n+1
-  q_2n: 0.001 # q for 2n
-  q_2n_1: 0.001 # q for 2n+1
-  q: 0.01 # q upto 2n
-pitch:
-  r: 0.05
-  x_t_2n: 0.0 # x for 2n
-  x_t_2n_1: 0.0 # x for 2n+1
-  p_k_2n: 10.0 # p for 2n
-  p_k_2n_1: 10.0 # p for 2n+1
-  q_2n: 0.001 # q for 2n
-  q_2n_1: 0.001 # q for 2n+1
-  q: 0.01 # q upto 2n
 yaw:
   r: 0.05
   x_t_2n: 0.0 # x for 2n

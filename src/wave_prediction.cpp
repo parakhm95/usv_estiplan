@@ -33,7 +33,6 @@ usv_estiplan::Float64Stamped wave_msg;
 usv_estiplan::Wavefuture wave_future_msg;
 ros::Publisher wave_observer;
 ros::Publisher wave_future;
-string odom_topic_name;
 string dof_name;
 double t_future = 0.0;
 double pred_horizon = 0.0;
@@ -246,51 +245,42 @@ int main(int argc, char **argv) {
     return -1;
   }
   dof_name = argv[1];
-  if (!estiplan.getParam("/topics/sampling_freq", sampling_freq)) {
+  if (!estiplan.getParam("sampling_freq", sampling_freq)) {
     sample_time = 1 / sampling_freq;
     ROS_ERROR("sampling_freq loading failed");
     return -1;
   }
-  if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
-    ROS_ERROR("WAVE_PRED:odom_topic loading failed");
-    return -1;
-  }
-  if (!estiplan.getParam("/t_future", t_future)) {
+  if (!estiplan.getParam("t_future", t_future)) {
     ROS_WARN("WAVE_PRED:t_future loading failed, using 0.0 default");
   }
-  if (!estiplan.getParam("/" + dof_name + "/" + "r", r(0))) {
+  if (!estiplan.getParam("r", r(0))) {
     ROS_WARN("WAVE_PRED:KF_r loading failed, quitting");
     return -1;
   }
-  if (!estiplan.getParam("/" + dof_name + "/" + "x_t_2n",
-                         x_t(2 * WAVE_COMPONENTS))) {
+  if (!estiplan.getParam("x_t_2n", x_t(2 * WAVE_COMPONENTS))) {
     ROS_WARN("WAVE_PRED:KF_x_t_2n loading failed, quitting");
     return -1;
   }
-  if (!estiplan.getParam("/" + dof_name + "/" + "x_t_2n_1",
-                         x_t(2 * WAVE_COMPONENTS + 1))) {
+  if (!estiplan.getParam("x_t_2n_1", x_t(2 * WAVE_COMPONENTS + 1))) {
     ROS_WARN("WAVE_PRED:KF_x_t_2n_1 loading failed, quitting");
     return -1;
   }
-  if (!estiplan.getParam("/" + dof_name + "/" + "p_k_2n",
+  if (!estiplan.getParam("p_k_2n",
                          p_k(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
     ROS_WARN("WAVE_PRED:KF_p_k_2n loading failed, quitting");
     return -1;
   }
   if (!estiplan.getParam(
-          "/" + dof_name + "/" + "p_k_2n_1",
-          p_k(2 * WAVE_COMPONENTS + 1, 2 * WAVE_COMPONENTS + 1))) {
+          "p_k_2n_1", p_k(2 * WAVE_COMPONENTS + 1, 2 * WAVE_COMPONENTS + 1))) {
     ROS_WARN("WAVE_PRED:KF_p_k_2n_1 loading failed, quitting");
     return -1;
   }
-  if (!estiplan.getParam("/" + dof_name + "/" + "q_2n",
-                         q(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
+  if (!estiplan.getParam("q_2n", q(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
     ROS_WARN("WAVE_PRED:KF_q_2n loading failed, quitting");
     return -1;
   }
   if (!estiplan.getParam(
-          "/" + dof_name + "/" + "q_2n_1",
-          q((2 * WAVE_COMPONENTS) + 1, (2 * WAVE_COMPONENTS) + 1))) {
+          "q_2n_1", q((2 * WAVE_COMPONENTS) + 1, (2 * WAVE_COMPONENTS) + 1))) {
     ROS_WARN("WAVE_PRED:KF_q_2n_1 loading failed, quitting");
     return -1;
   }
@@ -298,7 +288,7 @@ int main(int argc, char **argv) {
   a_i(2) = 1.0;
   a_i(3) = 0.0;
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
-    if (!estiplan.getParam("/" + dof_name + "/" + "q", q(i, i))) {
+    if (!estiplan.getParam("q", q(i, i))) {
       ROS_WARN("WAVE_PRED:KF_q loading failed, quitting");
       return -1;
     }
@@ -309,22 +299,22 @@ int main(int argc, char **argv) {
     c_t((2 * i) + 1) = 0.0;
   }
 
-  ros::Subscriber sub = estiplan.subscribe("/fft_output/", 1000, FftCallback);
+  ros::Subscriber sub = estiplan.subscribe("fft_in", 1000, FftCallback);
   ros::Subscriber sub_pose =
-      estiplan.subscribe(odom_topic_name, 1000, OdomCallback);
+      estiplan.subscribe("odometry_in", 1000, OdomCallback);
   wave_observer = estiplan.advertise<usv_estiplan::Float64Stamped>(
-      "/wave_observer/" + dof_name, 1000);
+      "wave_observer/" + dof_name, 1000);
   wave_future = estiplan.advertise<usv_estiplan::Wavefuture>(
-      "/wave_future/" + dof_name, 1000);
+      "wave_future/" + dof_name, 1000);
   // ros::ServiceServer prediction_srv = estiplan.advertiseService(
   //     "/wave_prediction/" + dof_name, PredictionServiceCallback);
   ros::Publisher prediction_publisher =
       estiplan.advertise<usv_estiplan::Wavefuture>(
-          "/wave_prediction/" + dof_name, 1000);
+          "wave_prediction/" + dof_name, 1000);
   ros::Rate loop_rate(100);
   while (ros::ok()) {
     if (!horizon_loaded) {
-      if (!estiplan.getParam("/sim/pred_horizon", pred_horizon)) {
+      if (!estiplan.getParam("/lmpc_pred_horizon", pred_horizon)) {
         ROS_WARN("WAVE_PRED : pred_horizon loading failed");
       } else {
         horizon_loaded = true;

@@ -37,7 +37,6 @@ usv_estiplan::Fftresult fft_result{};
 usv_estiplan::Fftarray fft_array{};
 usv_estiplan::Float64Stamped accuracy_msg;
 vector<vector<double>> wave_vec;
-string odom_topic_name;
 
 usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw);
 void executeFft(queue<float> queue_in, fftw_complex *out_fftw);
@@ -79,30 +78,26 @@ bool sortcol(const vector<double> &v1, const vector<double> &v2) {
 int main(int argc, char **argv) {
   ros::init(argc, argv, "fft_estimate");
   ros::NodeHandle estiplan("~");
-  if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
-    ROS_ERROR("odom_topic loading failed");
-    return -1;
-  }
-  if (!estiplan.getParam("/topics/sampling_freq", samp_freq)) {
+  if (!estiplan.getParam("sampling_freq", samp_freq)) {
     ROS_ERROR("sampling_freq loading failed");
     return -1;
   }
-  if (!estiplan.getParam("/fft_interval", fft_interval)) {
+  if (!estiplan.getParam("fft_interval", fft_interval)) {
     ROS_ERROR("fft_interval loading failed");
     return -1;
   }
-  if (!estiplan.getParam("/fft_threshold", fft_threshold)) {
+  if (!estiplan.getParam("fft_threshold", fft_threshold)) {
     ROS_ERROR("fft_threshold loading failed, using 0.02 default");
   }
-  if (!estiplan.getParam("/freq_accuracy", freq_accuracy)) {
+  if (!estiplan.getParam("freq_accuracy", freq_accuracy)) {
     ROS_ERROR("freq_accuracy loading failed, using 0.01 default");
   }
   MAX_QUEUE = samp_freq / freq_accuracy;
-  ros::Subscriber sub = estiplan.subscribe(odom_topic_name, 1000, odomCallback);
+  ros::Subscriber sub = estiplan.subscribe("odom_in", 1000, odomCallback);
   ros::Publisher fft_transform =
-      estiplan.advertise<usv_estiplan::Fftresult>("/fft_output/", 1000);
+      estiplan.advertise<usv_estiplan::Fftresult>("fft_out", 1000);
   ros::Publisher fft_accuracy_pub =
-      estiplan.advertise<usv_estiplan::Float64Stamped>("/fft_accuracy", 1000);
+      estiplan.advertise<usv_estiplan::Float64Stamped>("fft_accuracy", 1000);
   ros::Rate loop_rate(1 / fft_interval);
   ofstream fft_output_capt;
   fft_output_capt.open("fft_data.csv");
