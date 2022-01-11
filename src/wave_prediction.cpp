@@ -365,8 +365,8 @@ int main(int argc, char **argv) {
   // ros::ServiceServer prediction_srv = estiplan.advertiseService(
   //     "/wave_prediction/" + dof_name, PredictionServiceCallback);
   ros::Publisher prediction_publisher =
-      estiplan.advertise<usv_estiplan::Wavefuture>(
-          "wave_prediction/" + dof_name, 1000);
+      estiplan.advertise<usv_estiplan::Wavefuture>(dof_name + "_predictions",
+                                                   1000);
   ros::Rate loop_rate(100);
   while (ros::ok()) {
     if (!horizon_loaded) {
