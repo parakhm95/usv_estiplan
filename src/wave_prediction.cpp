@@ -99,6 +99,18 @@ void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
       sine_output = sin(phase(0));
       if (sine_output != 0.0) {
         amplitude(0) = x_t(2 * i) / sine_output;
+        if (amplitude(0) > 100.0) {
+          // "when the phase is very close to multiples of PI, the value of
+          // sin(phase(0)) is very close to zero, about 1e-16 sometimes, and we
+          // cannot set the limits based on phase because then real detections
+          // with low phase get sent to the shadown realm of zero amplitude if
+          // you filter it in the previous if statement. So, this is a
+          // gatekeeping method that should prevent false positives. And that
+          // method breaks the algorithm in some way that I did not investigate.
+          // 0/10 would not recommend."
+          //-One Parakh in Jan 2022 during quarantine
+          amplitude(0) = 0.0;
+        }
       } else {
         amplitude(0) = 0.0;
       }
