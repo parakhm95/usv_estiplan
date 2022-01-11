@@ -107,7 +107,6 @@ def bridge():
                 model_msg.pose.position.z = tag_msg.pose.position.z
                 model_msg.model_name = "sphere"
 
-            wave_pub.publish(model_msg)
             tag_pub.publish(tag_msg)
             tag_rpy_pub.publish(rpy_msg)
 

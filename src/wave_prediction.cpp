@@ -357,9 +357,11 @@ int main(int argc, char **argv) {
   ros::Subscriber sub_pose =
       estiplan.subscribe("odometry_in", 1000, OdomCallback);
   wave_observer = estiplan.advertise<usv_estiplan::Float64Stamped>(
-      "wave_observer/" + dof_name, 1000);
-  wave_future = estiplan.advertise<usv_estiplan::Wavefuture>(
-      "wave_future/" + dof_name, 1000);
+      dof_name + "_observer", 1000);
+  wave_future =
+      estiplan.advertise<usv_estiplan::Wavefuture>(dof_name + "_future", 1000);
+  detected_output = estiplan.advertise<usv_estiplan::Fftarray>(
+      dof_name + "_idenitification", 1000);
   // ros::ServiceServer prediction_srv = estiplan.advertiseService(
   //     "/wave_prediction/" + dof_name, PredictionServiceCallback);
   ros::Publisher prediction_publisher =

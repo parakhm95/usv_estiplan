@@ -14,7 +14,7 @@
     <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen">
         <rosparam command="load" file="$(find usv_estiplan)/config/fft_config.yaml" />
         <remap from="~odom_in" to="$(arg ODOM_TOPIC)" />
-        <remap from="~fft_out" to="$(arg FFT_TOPIC)" />
+        <remap from="~fft_out" to="~$(arg FFT_TOPIC)" />
     </node>
 
     <!-- Roll wave prediction node -->
@@ -22,14 +22,14 @@
         <rosparam command="load" file="$(find usv_estiplan)/config/kalman_roll.yaml" />
 
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
-        <remap from="~fft_in" to="$(arg FFT_TOPIC)" />
+        <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
 
     <!-- Pitch wave prediction node -->
     <node name="wave_prediction_pitch" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="pitch">
         <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pitch.yaml" />
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
-        <remap from="~fft_in" to="$(arg FFT_TOPIC)" />
+        <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
     
     <!-- Wave generator node -->
@@ -38,5 +38,5 @@
     <!-- April tag brige -->
     <node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen"/>
 </group>
-<node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" />
+<!-- <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" /> -->
 </launch>
