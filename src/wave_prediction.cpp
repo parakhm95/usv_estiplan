@@ -28,6 +28,7 @@ double sampling_freq = 100;
 double sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
 usv_estiplan::Fftarray fft_array{};
+usv_estiplan::Fftarray ident_msg{};
 double msg_time;
 usv_estiplan::Float64Stamped wave_msg;
 usv_estiplan::Wavefuture wave_future_msg;
@@ -37,6 +38,8 @@ string dof_name;
 double t_future = 0.0;
 double pred_horizon = 0.0;
 bool horizon_loaded = false;
+bool _diagnostics_ = false;
+bool _online_tune_ = true;
 Eigen::VectorXd w_k_hat(1);
 Eigen::VectorXd w_k(1);
 Eigen::Vector2d x_i;                                // X(i,0) single mode
@@ -76,6 +79,7 @@ Eigen::VectorXd freq(1);
 Eigen::VectorXd amplitude(1);
 // std::ofstream csv_debug;
 Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
+ros::Publisher detected_output;
 
 void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
                        double &first, double &second) {
@@ -89,12 +93,15 @@ void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
     //------extracting frequency-----
     { freq(0) = freq_components[i]; }
 
+    ident_msg.frequency[i] = freq(0);
+
     //------extracting time----------
     // t_k = (ros::Time::now().toNSec() - msg_time[i]) * 1e-9;
 
     // --------------------------extracting phase------------------------
     { phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)); }
     // -------------------extracting amplitude-------------------------
+    ident_msg.phase[i] = phase(0);
     {
       sine_output = sin(phase(0));
       if (sine_output != 0.0) {
@@ -115,10 +122,10 @@ void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
         amplitude(0) = 0.0;
       }
     }
+    ident_msg.amplitude[i] = amplitude(0);
     t_k = ((ros::Time::now().toNSec() - msg_time) * 1e-9) + pred_time;
     // --------------- zeroth ------------------
     { zeroth += amplitude(0) * sin((2 * M_PI * freq(0) * t_k) + phase(0)); }
-
     // --------------- first --------------------
     {
       first += amplitude(0) * 2 * M_PI * freq(0) *
@@ -165,6 +172,32 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     ROS_ERROR("dof_name was not specified, shutting down");
     ros::shutdown();
   }
+  if (_online_tune_) {
+    ros::NodeHandle estiplan("~");
+    if (!estiplan.getParam("q_2n",
+                           q(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
+      ROS_WARN("WAVE_PRED:KF_q_2n loading failed, quitting");
+    }
+    if (!estiplan.getParam("q_2n_1", q((2 * WAVE_COMPONENTS) + 1,
+                                       (2 * WAVE_COMPONENTS) + 1))) {
+      ROS_WARN("WAVE_PRED:KF_q_2n_1 loading failed, quitting");
+    }
+    if (!estiplan.getParam("r", r(0))) {
+      ROS_WARN("WAVE_PRED:KF_r loading failed, quitting");
+    }
+    if (!estiplan.getParam("x_t_2n", x_t(2 * WAVE_COMPONENTS))) {
+      ROS_WARN("WAVE_PRED:KF_x_t_2n loading failed, quitting");
+    }
+    if (!estiplan.getParam("x_t_2n_1", x_t(2 * WAVE_COMPONENTS + 1))) {
+      ROS_WARN("WAVE_PRED:KF_x_t_2n_1 loading failed, quitting");
+    }
+    for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+      if (!estiplan.getParam("q", q(i, i))) {
+        ROS_WARN("WAVE_PRED:KF_q loading failed, quitting");
+      }
+    }
+  }
+
   if (!first_start) {
     x_predicted = phi * x_t;
     q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
@@ -189,6 +222,9 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
                       wave_future_msg.second);
     wave_future_msg.header.stamp = ros::Time::now();
     wave_future.publish(wave_future_msg);
+    if (_diagnostics_) {
+      detected_output.publish(ident_msg);
+    }
   }
 }
 
@@ -295,6 +331,12 @@ int main(int argc, char **argv) {
           "q_2n_1", q((2 * WAVE_COMPONENTS) + 1, (2 * WAVE_COMPONENTS) + 1))) {
     ROS_WARN("WAVE_PRED:KF_q_2n_1 loading failed, quitting");
     return -1;
+  }
+  if (!estiplan.getParam("online_tune", _online_tune_)) {
+    ROS_WARN("WAVE_PRED:online_tune loading failed, default is false");
+  }
+  if (!estiplan.getParam("diagnostics", _diagnostics_)) {
+    ROS_WARN("WAVE_PRED:diagnostics loading failed, default is false");
   }
   a_i(0) = 0.0;
   a_i(2) = 1.0;
