@@ -140,8 +140,8 @@ int main(int argc, char **argv) {
     fft_result.x = processFft(fft_size, out_fftw_x);
     fft_result.y = processFft(fft_size, out_fftw_y);
     fft_result.z = processFft(fft_size, out_fftw_z);
-    fft_result.roll = processFft(fft_size, out_fftw_pitch);
-    fft_result.pitch = processFft(fft_size, out_fftw_roll);
+    fft_result.roll = processFft(fft_size, out_fftw_roll);
+    fft_result.pitch = processFft(fft_size, out_fftw_pitch);
     fft_result.yaw = processFft(fft_size, out_fftw_yaw);
 
     fft_transform.publish(fft_result);
