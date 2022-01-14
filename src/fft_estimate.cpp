@@ -26,6 +26,7 @@ int samp_freq = 100;
 float fft_interval = 0.2;
 const int WAVE_COMPONENTS = 20;
 float fft_threshold = 0.02;
+bool _hanning_window_ = false;
 queue<float> x_queue;
 queue<float> y_queue;
 queue<float> z_queue;
@@ -65,7 +66,12 @@ void convert_que_to_array(queue<float> dupl, fftw_complex *fftw_in) {
   int fft_size = dupl.size();  // using dupl.size() multiple times was causing
                                // for loop to use garbage i values.
   for (int i = 0; i < fft_size; i++) {
-    fftw_in[i][REAL] = dupl.front();
+    if (_hanning_window_) {
+      fftw_in[i][REAL] =
+          pow(sin(M_PI * i / fft_size), 2) * dupl.front();  // hanning window
+    } else {
+      fftw_in[i][REAL] = dupl.front();
+    }
     fftw_in[i][IMAG] = 0.0;
     dupl.pop();
   }
@@ -92,6 +98,9 @@ int main(int argc, char **argv) {
   if (!estiplan.getParam("freq_accuracy", freq_accuracy)) {
     ROS_ERROR("freq_accuracy loading failed, using 0.01 default");
   }
+  if (!estiplan.getParam("hanning_window", _hanning_window_)) {
+    ROS_ERROR("FFT: _hanning_window_ loading failed");
+  }
   MAX_QUEUE = samp_freq / freq_accuracy;
   ros::Subscriber sub = estiplan.subscribe("odom_in", 1000, odomCallback);
   ros::Publisher fft_transform =
@@ -99,8 +108,8 @@ int main(int argc, char **argv) {
   ros::Publisher fft_accuracy_pub =
       estiplan.advertise<usv_estiplan::Float64Stamped>("fft_accuracy", 1000);
   ros::Rate loop_rate(1 / fft_interval);
-  ofstream fft_output_capt;
-  fft_output_capt.open("fft_data.csv");
+  // ofstream fft_output_capt;
+  // fft_output_capt.open("fft_data.csv");
   x_queue.push(0);      // to prevent core dump
   y_queue.push(0);      // to prevent core dump
   z_queue.push(0);      // to prevent core dump
@@ -146,7 +155,7 @@ int main(int argc, char **argv) {
 
     fft_transform.publish(fft_result);
     if (ros::isShuttingDown()) {
-      fft_output_capt.close();
+      // fft_output_capt.close();
     }
     ros::spinOnce();
     loop_rate.sleep();
