@@ -294,10 +294,10 @@ int main(int argc, char **argv) {
   }
   dof_name = argv[1];
   if (!estiplan.getParam("sampling_freq", sampling_freq)) {
-    sample_time = 1 / sampling_freq;
     ROS_ERROR("sampling_freq loading failed");
     return -1;
   }
+  sample_time = 1 / sampling_freq;
   if (!estiplan.getParam("t_future", t_future)) {
     ROS_WARN("WAVE_PRED:t_future loading failed, using 0.0 default");
   }
