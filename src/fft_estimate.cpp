@@ -43,7 +43,7 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw);
 void executeFft(queue<float> queue_in, fftw_complex *out_fftw);
 
 void queue_things(queue<float> &queue_in, float push_in) {
-  while (queue_in.size() > MAX_QUEUE) {
+  while (queue_in.size() > MAX_QUEUE - 1) {
     queue_in.pop();
   }
   queue_in.push(push_in);
@@ -110,12 +110,12 @@ int main(int argc, char **argv) {
   ros::Rate loop_rate(1 / fft_interval);
   // ofstream fft_output_capt;
   // fft_output_capt.open("fft_data.csv");
-  x_queue.push(0);      // to prevent core dump
-  y_queue.push(0);      // to prevent core dump
-  z_queue.push(0);      // to prevent core dump
-  roll_queue.push(0);   // to prevent core dump
-  pitch_queue.push(0);  // to prevent core dump
-  yaw_queue.push(0);    // to prevent core dump
+  queue_things(x_queue, 0.0);      // to prevent core dump
+  queue_things(y_queue, 0.0);      // to prevent core dump
+  queue_things(z_queue, 0.0);      // to prevent core dump
+  queue_things(roll_queue, 0.0);   // to prevent core dump
+  queue_things(pitch_queue, 0.0);  // to prevent core dump
+  queue_things(yaw_queue, 0.0);    // to prevent core dump
   for (size_t i = 0; i < MAX_QUEUE / 2; i++) {
     wave_vec.push_back({0, 0, 0});  // Freq, Amp, Phase
   }
@@ -176,7 +176,13 @@ void executeFft(queue<float> queue_in, fftw_complex *out_fftw) {
 }
 
 usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw) {
-  for (int i = 0; i < fft_size / 2; i++) {
+  for (size_t i = 0; i < MAX_QUEUE / 2; i++) {
+    wave_vec[i][0] = 0.0;
+    wave_vec[i][1] = 0.0;
+    wave_vec[i][2] = 0.0;
+  }
+
+  for (int i = 1; i < fft_size / 2; i++) {
     // Frequency
     wave_vec[i][0] = i * float(samp_freq / 2) / (fft_size / 2);
     // Amplitude

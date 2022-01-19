@@ -31,8 +31,10 @@ usv_estiplan::Fftarray fft_array{};
 usv_estiplan::Fftarray ident_msg{};
 double msg_time;
 usv_estiplan::Float64Stamped wave_msg;
+usv_estiplan::Float64Stamped decoded_msg;
 usv_estiplan::Wavefuture wave_future_msg;
 ros::Publisher wave_observer;
+ros::Publisher wave_decoded;
 ros::Publisher wave_future;
 string dof_name;
 double t_future = 0.0;
@@ -54,8 +56,8 @@ Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
 Eigen::MatrixXd phi(2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
 // P_k+1 predicted
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
-    p_k_dash = Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1),
-                                     2 * (WAVE_COMPONENTS + 1));
+    p_k_dash = Eigen::MatrixXd::Identity(2 * (WAVE_COMPONENTS + 1),
+                                         2 * (WAVE_COMPONENTS + 1));
 // P_k+1 actual
 Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
     p_k = Eigen::MatrixXd::Zero(2 * (WAVE_COMPONENTS + 1),
@@ -91,7 +93,7 @@ void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
   time_of_msg = pred_time;
   for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
     //------extracting frequency-----
-    { freq(0) = freq_components[i]; }
+    freq(0) = freq_components(i);
 
     ident_msg.frequency[i] = freq(0);
 
@@ -99,43 +101,38 @@ void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
     // t_k = (ros::Time::now().toNSec() - msg_time[i]) * 1e-9;
 
     // --------------------------extracting phase------------------------
-    { phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1)); }
+    phase(0) = atan2(2 * M_PI * freq(0) * x_t(2 * i), x_t((2 * i) + 1));
     // -------------------extracting amplitude-------------------------
     ident_msg.phase[i] = phase(0);
-    {
-      sine_output = sin(phase(0));
-      if (sine_output != 0.0) {
-        amplitude(0) = x_t(2 * i) / sine_output;
-        if (amplitude(0) > 100.0) {
-          // "when the phase is very close to multiples of PI, the value of
-          // sin(phase(0)) is very close to zero, about 1e-16 sometimes, and we
-          // cannot set the limits based on phase because then real detections
-          // with low phase get sent to the shadown realm of zero amplitude if
-          // you filter it in the previous if statement. So, this is a
-          // gatekeeping method that should prevent false positives. And that
-          // method breaks the algorithm in some way that I did not investigate.
-          // 0/10 would not recommend."
-          //-One Parakh in Jan 2022 during quarantine
-          amplitude(0) = 0.0;
-        }
-      } else {
+
+    sine_output = sin(phase(0));
+    if (sine_output != 0.0) {
+      amplitude(0) = x_t(2 * i) / sine_output;
+      if (amplitude(0) > 100.0) {
+        // "when the phase is very close to multiples of PI, the value of
+        // sin(phase(0)) is very close to zero, about 1e-16 sometimes, and we
+        // cannot set the limits based on phase because then real detections
+        // with low phase get sent to the shadown realm of zero amplitude if
+        // you filter it in the previous if statement. So, this is a
+        // gatekeeping method that should prevent false positives. And that
+        // method breaks the algorithm in some way that I did not investigate.
+        // 0/10 would not recommend."
+        //-One Parakh in Jan 2022 during quarantine
         amplitude(0) = 0.0;
       }
+    } else {
+      amplitude(0) = 0.0;
     }
     ident_msg.amplitude[i] = amplitude(0);
     t_k = ((ros::Time::now().toNSec() - msg_time) * 1e-9) + pred_time;
     // --------------- zeroth ------------------
-    { zeroth += amplitude(0) * sin((2 * M_PI * freq(0) * t_k) + phase(0)); }
+    zeroth += amplitude(0) * sin((2 * M_PI * freq(0) * t_k) + phase(0));
     // --------------- first --------------------
-    {
-      first += amplitude(0) * 2 * M_PI * freq(0) *
-               cos((2 * M_PI * freq(0) * t_k) + phase(0));
-    }
+    first += amplitude(0) * 2 * M_PI * freq(0) *
+             cos((2 * M_PI * freq(0) * t_k) + phase(0));
     // --------------- second --------------------
-    {
-      second += -amplitude(0) * pow(2 * M_PI * freq(0), 2) *
-                sin((2 * M_PI * freq(0) * t_k) + phase(0));
-    }
+    second += -amplitude(0) * pow(2 * M_PI * freq(0), 2) *
+              sin((2 * M_PI * freq(0) * t_k) + phase(0));
   }
   // ------------------- adding random noise component -----------------
   zeroth += x_t(2 * WAVE_COMPONENTS);
@@ -172,6 +169,9 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     ROS_ERROR("dof_name was not specified, shutting down");
     ros::shutdown();
   }
+  decoded_msg.header.stamp = ros::Time::now();
+  decoded_msg.data = w_k(0);
+  wave_decoded.publish(decoded_msg);
   if (_online_tune_) {
     ros::NodeHandle estiplan("~");
     if (!estiplan.getParam("q_2n",
@@ -191,7 +191,7 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     if (!estiplan.getParam("x_t_2n_1", x_t(2 * WAVE_COMPONENTS + 1))) {
       ROS_WARN("WAVE_PRED:KF_x_t_2n_1 loading failed, quitting");
     }
-    for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+    for (size_t i = 0; i < 2 * WAVE_COMPONENTS; i++) {
       if (!estiplan.getParam("q", q(i, i))) {
         ROS_WARN("WAVE_PRED:KF_q loading failed, quitting");
       }
@@ -199,12 +199,12 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
   }
 
   if (!first_start) {
-    x_predicted = phi * x_t;
     q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
     p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
     l_k = p_k_dash * c_t.transpose() *
           (c_t * p_k_dash * c_t.transpose() + r).inverse();
-    w_k_hat = c_t * x_t;
+    x_predicted = phi * x_t;
+    w_k_hat = c_t * x_predicted;
     x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
     w_k_hat = c_t * x_predicted;
     p_k = (Eigen::MatrixXd::Identity(2 * (WAVE_COMPONENTS + 1),
@@ -314,12 +314,12 @@ int main(int argc, char **argv) {
     return -1;
   }
   if (!estiplan.getParam("p_k_2n",
-                         p_k(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
+                         p_k_dash(2 * WAVE_COMPONENTS, 2 * WAVE_COMPONENTS))) {
     ROS_WARN("WAVE_PRED:KF_p_k_2n loading failed, quitting");
     return -1;
   }
-  if (!estiplan.getParam(
-          "p_k_2n_1", p_k(2 * WAVE_COMPONENTS + 1, 2 * WAVE_COMPONENTS + 1))) {
+  if (!estiplan.getParam("p_k_2n_1", p_k_dash(2 * WAVE_COMPONENTS + 1,
+                                              2 * WAVE_COMPONENTS + 1))) {
     ROS_WARN("WAVE_PRED:KF_p_k_2n_1 loading failed, quitting");
     return -1;
   }
@@ -341,7 +341,7 @@ int main(int argc, char **argv) {
   a_i(0) = 0.0;
   a_i(2) = 1.0;
   a_i(3) = 0.0;
-  for (size_t i = 0; i < WAVE_COMPONENTS; i++) {
+  for (size_t i = 0; i < 2 * WAVE_COMPONENTS; i++) {
     if (!estiplan.getParam("q", q(i, i))) {
       ROS_WARN("WAVE_PRED:KF_q loading failed, quitting");
       return -1;
@@ -358,6 +358,8 @@ int main(int argc, char **argv) {
       estiplan.subscribe("odometry_in", 1000, OdomCallback);
   wave_observer = estiplan.advertise<usv_estiplan::Float64Stamped>(
       dof_name + "_observer", 1000);
+  wave_decoded = estiplan.advertise<usv_estiplan::Float64Stamped>(
+      dof_name + "_decoded", 1000);
   wave_future =
       estiplan.advertise<usv_estiplan::Wavefuture>(dof_name + "_future", 1000);
   detected_output = estiplan.advertise<usv_estiplan::Fftarray>(
