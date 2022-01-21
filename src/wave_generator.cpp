@@ -1,16 +1,18 @@
 // #include <fftw3.h>
-#include "geometry_msgs/PoseStamped.h"
-#include "geometry_msgs/Vector3.h"
-#include "ros/ros.h"
-#include "sensor_msgs/Imu.h"
-#include "std_msgs/Float64.h"
+#include <tf2/LinearMath/Quaternion.h>
+
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <queue>
 #include <random>
 #include <sstream>
-#include <tf2/LinearMath/Quaternion.h>
+
+#include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/Vector3.h"
+#include "ros/ros.h"
+#include "sensor_msgs/Imu.h"
+#include "std_msgs/Float64.h"
 
 using namespace std;
 
@@ -24,6 +26,7 @@ const float CONSTANT_OFFSET_Z = 9.2;
 double roll = 0.0;
 double pitch = 0.0;
 double yaw = 0.0;
+double run_rate = 0.0;
 uint64_t iter_global = 0;
 string odom_topic_name;
 geometry_msgs::PoseStamped pose_msg{};
@@ -37,20 +40,24 @@ double three[wave_components] = {0.1, 0.2, 0.3, 0.4, 0.5,
                                  0.6, 0.7, 0.8, 0.9, 1.0};
 
 int main(int argc, char **argv) {
-
   ros::init(argc, argv, "wave_generator");
   ros::NodeHandle estiplan("~");
-  if (!estiplan.getParam("/topics/odom", odom_topic_name)) {
+  if (!estiplan.getParam("topics/odom", odom_topic_name)) {
     ROS_ERROR("WAVE_GEN:odom_topic loading failed");
     return -1;
   }
+  if (!estiplan.getParam("sampling_freq", run_rate)) {
+    ROS_ERROR("WAVE_GEN:sampling_freq loading failed");
+    return -1;
+  }
   ros::Publisher wave_generator =
-      estiplan.advertise<geometry_msgs::PoseStamped>(odom_topic_name, 1000);
+      estiplan.advertise<geometry_msgs::PoseStamped>("odom_out", 1000);
     ros::Publisher rpy_generator =
-      estiplan.advertise<geometry_msgs::Vector3>(odom_topic_name+"/rpy", 1000);
-  ros::Rate loop_rate(100.0);
+      estiplan.advertise<geometry_msgs::Vector3>("odom_rpy_out", 1000);
+  ros::Rate loop_rate(run_rate);
   double wave_output;
   double time_elap = 0;
+  double start_time = ros::Time::now().toNSec();
   while (ros::ok()) {
     pose_msg.pose.position.x = 0.0;
     pose_msg.pose.position.y = 0.0;
@@ -58,7 +65,7 @@ int main(int argc, char **argv) {
     roll = 0.0;
     pitch = 0.0;
     yaw = 0.0;
-    time_elap = ros::Time::now().toNSec() * 1e-9;
+    time_elap = (ros::Time::now().toNSec() - start_time) * 1e-9;
     for (size_t i = 0; i < wave_components; i++) {
       pose_msg.pose.position.x +=
           one[i] * sin((two[i] * 2 * M_PI * time_elap) + three[i]);
@@ -77,9 +84,9 @@ int main(int argc, char **argv) {
     pose_msg.pose.position.x += dist(mt) + CONSTANT_OFFSET_X;
     pose_msg.pose.position.y += dist(mt) + CONSTANT_OFFSET_Y;
     pose_msg.pose.position.z += dist(mt) + CONSTANT_OFFSET_Z;
-    roll = roll/3 + dist_small(mt);
-    pitch = pitch/3 + dist_small(mt);
-    yaw = yaw/3 + dist_small(mt);
+    roll = roll / 3 + dist_small(mt);
+    pitch = pitch / 3 + dist_small(mt);
+    yaw = yaw / 3 + dist_small(mt);
     rpy_msg.x = roll;
     rpy_msg.y = pitch;
     rpy_msg.z = yaw;

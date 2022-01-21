@@ -278,6 +278,14 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
       x_i(1) = 2 * M_PI * fft_array.amplitude[spot_avlb] *
                fft_array.frequency[spot_avlb] * cos(fft_array.phase[spot_avlb]);
       x_t.block(2 * i, 0, 2, 1) = x_i;
+      for (size_t k = 0; k < 2 * (WAVE_COMPONENTS + 1); k++) {
+        p_k_dash(2 * i, k) = 0.0;
+        p_k_dash(k, 2 * i) = 0.0;
+        p_k_dash((2 * i) + 1, k) = 0.0;
+        p_k_dash(k, (2 * i) + 1) = 0.0;
+      }
+      p_k_dash(2 * i, 2 * i) = 1.0;
+      p_k_dash((2 * i) + 1, (2 * i) + 1) = 1.0;
       spot_avlb += 1;
     }
   }
