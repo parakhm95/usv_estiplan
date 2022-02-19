@@ -1,14 +1,18 @@
 <launch>
 <arg name="UAV_NAME" default="$(env UAV_NAME)" />
 <arg name="SAMPLING_FREQ" value="30" />
+<arg name="CAMERA_NAME" value="rs_d435" />
 <arg name="ODOM_TOPIC" value="rs_d435/color/base_detections" />
+<arg name="TAG_TOPIC" value="$(arg CAMERA_NAME)/tag_detections" />
 <arg name="FFT_TOPIC" value="fft_output" />
 <arg name="T_FUTURE" value="1.0" />
+<arg name="TAG_FRAME_GLOBAL" value="$(arg UAV_NAME)/fcu" />
 <group ns="$(arg UAV_NAME)">
 
     <!-- Params that are common to all the nodes -->
     <param name="~sampling_freq" value="$(arg SAMPLING_FREQ)" />
     <param name="~t_future" value="$(arg T_FUTURE)" />
+    <param name="~tag_frame" value="$(arg TAG_FRAME_GLOBAL)" />
 
     <!-- FFT Node -->
     <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen">
@@ -36,7 +40,10 @@
     <node name="gazebo_wave_generator" pkg="usv_estiplan" type="gazebo_wave_generator.py" output="screen"/>
 
     <!-- April tag brige -->
-    <node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen"/>
+    <node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen">
+        <remap from="~base_detections_out" to="$(arg ODOM_TOPIC)" />
+        <remap from="~tag_detections_in" to ="$(arg TAG_TOPIC)" />
+    </node>
 </group>
 <!-- <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" /> -->
 </launch>
