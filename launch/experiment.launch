@@ -6,7 +6,7 @@
 <arg name="TAG_TOPIC" value="mv_$(arg CAMERA_NAME)/tag_detections" />
 <arg name="FFT_TOPIC" value="fft_output" />
 <arg name="T_FUTURE" value="1.0" />
-<arg name="TAG_FRAME_GLOBAL" value="$(arg UAV_NAME)/fcu" />
+<arg name="TAG_FRAME_GLOBAL" value="$(arg UAV_NAME)/gps_origin" />
 <group ns="$(arg UAV_NAME)">
 
     <!-- Params that are common to all the nodes -->
