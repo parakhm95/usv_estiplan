@@ -40,7 +40,8 @@
     <!-- April tag brige -->
     <node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen">
         <remap from="~base_detections_out" to="$(arg ODOM_TOPIC)" />
-        <remap from="~tag_detections_in" to ="$(arg TAG_TOPIC)" />
+        <remap from="~tag_detections_in" to="$(arg TAG_TOPIC)" />
+        <remap from="~uav_state_in" to="odometry/uav_state" />
     </node>
 </group>
 <!-- <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" /> -->
