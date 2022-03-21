@@ -28,7 +28,7 @@ publish_tag_detections = False
 random_noise = True
 tag_pub = None
 tag_selected_id_pub = None
-tag_frame = None
+tag_frame = "uav7/fcu"
 # freq, amp, phase
 
 wave_pub = rospy.Publisher('/gazebo/set_model_state',
