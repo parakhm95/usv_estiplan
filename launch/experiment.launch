@@ -3,7 +3,7 @@
 <arg name="SAMPLING_FREQ" value="35" />
 <arg name="CAMERA_NAME" value="basler_$(env BASLER)" />
 <arg name="ODOM_TOPIC" value="base_detections" />
-<arg name="TAG_TOPIC" value="tag_detections" />
+<arg name="TAG_TOPIC" default="tag_detections" />
 <arg name="FFT_TOPIC" value="fft_output" />
 <arg name="T_FUTURE" value="1.0" />
 <arg name="TAG_FRAME_GLOBAL" value="$(arg UAV_NAME)/gps_origin" />
