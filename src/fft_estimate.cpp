@@ -27,6 +27,7 @@ float fft_interval = 0.2;
 const int WAVE_COMPONENTS = 20;
 float fft_threshold = 0.02;
 bool _hanning_window_ = false;
+bool _debug_ = false;
 queue<float> x_queue;
 queue<float> y_queue;
 queue<float> z_queue;
@@ -39,8 +40,15 @@ usv_estiplan::Fftarray fft_array{};
 usv_estiplan::Float64Stamped accuracy_msg;
 usv_estiplan::Float64Stamped accuracy_target_msg;
 vector<vector<double>> wave_vec;
+std::ofstream debug_file_x;
+std::ofstream debug_file_y;
+std::ofstream debug_file_z;
+std::ofstream debug_file_roll;
+std::ofstream debug_file_pitch;
+std::ofstream debug_file_yaw;
 
-usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw);
+usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw,
+                                  std::ofstream &debug_file);
 void executeFft(queue<float> queue_in, fftw_complex *out_fftw);
 
 void queue_things(queue<float> &queue_in, float push_in) {
@@ -102,6 +110,17 @@ int main(int argc, char **argv) {
   if (!estiplan.getParam("hanning_window", _hanning_window_)) {
     ROS_ERROR("FFT: _hanning_window_ loading failed");
   }
+  if (!estiplan.getParam("debug", _debug_)) {
+    ROS_WARN("FFT: _debug_ loading failed, defaulting to false");
+  }
+  if (_debug_) {
+    debug_file_x.open("/tmp/debug_fft_x.csv");
+    debug_file_y.open("/tmp/debug_fft_y.csv");
+    debug_file_z.open("/tmp/debug_fft_z.csv");
+    debug_file_roll.open("/tmp/debug_fft_roll.csv");
+    debug_file_pitch.open("/tmp/debug_fft_pitch.csv");
+    debug_file_yaw.open("/tmp/debug_fft_yaw.csv");
+  }
   MAX_QUEUE = samp_freq / freq_accuracy;
   ros::Subscriber sub = estiplan.subscribe("odom_in", 1000, odomCallback);
   ros::Publisher fft_transform =
@@ -153,15 +172,24 @@ int main(int argc, char **argv) {
     fft_accuracy_target_pub.publish(accuracy_target_msg);
     cout << "FFT accuracy(Hz) : " << accuracy_msg.data << endl;
     fft_result.header.stamp = ros::Time::now();
-    fft_result.x = processFft(fft_size, out_fftw_x);
-    fft_result.y = processFft(fft_size, out_fftw_y);
-    fft_result.z = processFft(fft_size, out_fftw_z);
-    fft_result.roll = processFft(fft_size, out_fftw_roll);
-    fft_result.pitch = processFft(fft_size, out_fftw_pitch);
-    fft_result.yaw = processFft(fft_size, out_fftw_yaw);
+    fft_result.x = processFft(fft_size, out_fftw_x, debug_file_x);
+    fft_result.y = processFft(fft_size, out_fftw_y, debug_file_y);
+    fft_result.z = processFft(fft_size, out_fftw_z, debug_file_z);
+    fft_result.roll = processFft(fft_size, out_fftw_roll, debug_file_roll);
+    fft_result.pitch = processFft(fft_size, out_fftw_pitch, debug_file_pitch);
+    fft_result.yaw = processFft(fft_size, out_fftw_yaw, debug_file_yaw);
+    // debug_file.close();
 
     fft_transform.publish(fft_result);
     if (ros::isShuttingDown()) {
+      std::cout << "Close bitch" << std::endl;
+      debug_file_x.close();
+      debug_file_y.close();
+      debug_file_z.close();
+      debug_file_pitch.close();
+      debug_file_roll.close();
+      debug_file_yaw.close();
+
       // fft_output_capt.close();
     }
     ros::spinOnce();
@@ -182,13 +210,16 @@ void executeFft(queue<float> queue_in, fftw_complex *out_fftw) {
   fftw_cleanup();
 }
 
-usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw) {
+usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw,
+                                  std::ofstream &debug_file) {
   for (size_t i = 0; i < MAX_QUEUE / 2; i++) {
     wave_vec[i][0] = 0.0;
     wave_vec[i][1] = 0.0;
     wave_vec[i][2] = 0.0;
   }
-
+  std::string freq_csv = "frequency;";
+  std::string amp_csv = "amplitude;";
+  std::string phase_csv = "phase;";
   for (int i = 1; i < fft_size / 2; i++) {
     // Frequency
     wave_vec[i][0] = i * float(samp_freq / 2) / (fft_size / 2);
@@ -204,6 +235,19 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw) {
       wave_vec[i][1] = wave_vec[i][1] / 2;
       wave_vec[i][2] = M_PI / 2;
     }
+    if (_debug_) {
+      freq_csv += std::to_string(wave_vec[i][0]) + ";";
+      amp_csv += std::to_string(wave_vec[i][1]) + ";";
+      phase_csv += std::to_string(wave_vec[i][2]) + ";";
+    }
+  }
+  if (_debug_) {
+    freq_csv += "\n";
+    amp_csv += "\n";
+    phase_csv += "\n";
+    debug_file << freq_csv;
+    debug_file << amp_csv;
+    debug_file << phase_csv;
   }
   sort(wave_vec.begin(), wave_vec.end(), sortcol);
   usv_estiplan::Fftarray fft_array;

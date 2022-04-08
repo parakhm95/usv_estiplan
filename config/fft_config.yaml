@@ -4,3 +4,4 @@ fft_interval: 5.0 # 5 seconds or 0.2 Hz
 fft_threshold: 0.05 # Amplitude less than 5% of max is discarded
 hanning_window: false # WARNING : Hanning doesn't work with DC component
 # t_future: 1.0 # how much further into the future do you want to predict for wave_future topic
+debug: true

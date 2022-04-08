@@ -48,6 +48,8 @@ def callback(msg):
 
 def bridge():
     rospy.init_node('gazebo_wave_generator', anonymous=True)
+    publish_tag_detections = rospy.get_param('~publish_tags')
+    rospy.get_param('publish_tags', publish_tag_detections)
     # rospy.Subscriber("/uav1/rs_d435/color/base_detections", PoseStamped, callback)
     rate = rospy.Rate(tag_publish_rate)
     while not rospy.is_shutdown():
