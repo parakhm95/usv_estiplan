@@ -6,8 +6,10 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <queue>
 #include <sstream>
+#include <thread>
 #include <unsupported/Eigen/MatrixFunctions>
 
 #include "geometry_msgs/PoseStamped.h"
@@ -24,7 +26,7 @@ using namespace std;
 #define IMAG 1
 
 const int WAVE_COMPONENTS = 20;
-double sampling_freq = 100;
+double sampling_freq = 30;
 double sample_time = 1 / sampling_freq;
 uint64_t iter_global = 0;
 usv_estiplan::Fftarray fft_array{};
@@ -83,6 +85,17 @@ Eigen::VectorXd amplitude(1);
 // std::ofstream csv_debug;
 Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 ros::Publisher detected_output;
+
+using x_t = Eigen::Matrix<double, 42, 1>;
+using P_t = Eigen::Matrix<double, 42, 42>;
+
+struct state_t {
+  x_t x;
+  P_t P;
+  ros::Time stamp;
+
+  std::mutex mtx;
+} state;
 
 void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
                        double &first, double &second) {
@@ -149,6 +162,8 @@ bool PredictionServiceCallback(usv_estiplan::PredictionOutput::Request &req,
 }
 
 void OdomCallback(const geometry_msgs::PoseStamped &msg) {
+  std::scoped_lock lck(state.mtx);
+
   tf2::Quaternion quat(msg.pose.orientation.x, msg.pose.orientation.y,
                        msg.pose.orientation.z, msg.pose.orientation.w);
   tf2::Matrix3x3 mat(quat);
@@ -170,6 +185,7 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     ROS_ERROR("dof_name was not specified, shutting down");
     ros::shutdown();
   }
+
   decoded_msg.header.stamp = ros::Time::now();
   decoded_msg.data = w_k(0);
   wave_decoded.publish(decoded_msg);
@@ -291,6 +307,37 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
   phi = (a_t * sample_time).exp();
 }
 
+void prediction_routine() {
+  ros::Rate loop_rate(30);
+  while (ros::ok()) {
+    std::scoped_lock lck(state.mtx);
+
+    if (!horizon_loaded) {
+      if (!estiplan.getParam("/lmpc_pred_horizon", pred_horizon)) {
+        ROS_WARN("WAVE_PRED : pred_horizon loading failed");
+      } else {
+        horizon_loaded = true;
+      }
+    }
+    /////////-------------------Kalman predict step--------------///////////////
+    if (!first_start) {
+      q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
+      p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
+      x_predicted = phi * x_t;
+    }
+    ///////////////////////////////////////////////////////////////////////
+    for (size_t i = 0; i < pred_horizon; i++) {
+      PredictWaveFuture(iterable_time, wave_future_msg.pred_time,
+                        wave_future_msg.zeroth, wave_future_msg.first,
+                        wave_future_msg.second);
+      prediction_publisher.publish(wave_future_msg);
+      iterable_time += 0.01;
+    }
+
+    loop_rate.sleep();
+  }
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "wave_prediction", ros::init_options::AnonymousName);
   ros::NodeHandle estiplan("~");
@@ -375,7 +422,10 @@ int main(int argc, char **argv) {
   ros::Publisher prediction_publisher =
       estiplan.advertise<usv_estiplan::Wavefuture>(dof_name + "_predictions",
                                                    1000);
-  ros::Rate loop_rate(100);
+
+  std::thread prediction_thread(prediction_routine);
+
+  ros::Rate loop_rate(30);
   while (ros::ok()) {
     if (!horizon_loaded) {
       if (!estiplan.getParam("/lmpc_pred_horizon", pred_horizon)) {
@@ -405,5 +455,6 @@ int main(int argc, char **argv) {
     loop_rate.sleep();
   }
 
+  prediction_thread.join();
   return 0;
 }
