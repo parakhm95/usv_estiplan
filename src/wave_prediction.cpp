@@ -39,6 +39,7 @@ ros::Publisher wave_future;
 string dof_name;
 double t_future = 0.0;
 double pred_horizon = 0.0;
+double iterable_time = 0.01;
 bool horizon_loaded = false;
 bool _diagnostics_ = false;
 bool _online_tune_ = true;
@@ -199,11 +200,8 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
   }
 
   if (!first_start) {
-    q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
-    p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
     l_k = p_k_dash * c_t.transpose() *
           (c_t * p_k_dash * c_t.transpose() + r).inverse();
-    x_predicted = phi * x_t;
     w_k_hat = c_t * x_predicted;
     x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
     w_k_hat = c_t * x_predicted;
@@ -305,7 +303,7 @@ int main(int argc, char **argv) {
     ROS_ERROR("sampling_freq loading failed");
     return -1;
   }
-  sample_time = 1 / sampling_freq;
+  // sample_time = 1 / sampling_freq;
   if (!estiplan.getParam("t_future", t_future)) {
     ROS_WARN("WAVE_PRED:t_future loading failed, using 0.0 default");
   }
@@ -386,13 +384,19 @@ int main(int argc, char **argv) {
         horizon_loaded = true;
       }
     }
-    double pred_time = 0.01;
+    /////////-------------------Kalman predict step--------------///////////////
+    if (!first_start) {
+      q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
+      p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
+      x_predicted = phi * x_t;
+    }
+    ///////////////////////////////////////////////////////////////////////
     for (size_t i = 0; i < pred_horizon; i++) {
-      PredictWaveFuture(pred_time, wave_future_msg.pred_time,
+      PredictWaveFuture(iterable_time, wave_future_msg.pred_time,
                         wave_future_msg.zeroth, wave_future_msg.first,
                         wave_future_msg.second);
       prediction_publisher.publish(wave_future_msg);
-      pred_time += 0.01;
+      iterable_time += 0.01;
     }
 
     if (ros::isShuttingDown()) {
