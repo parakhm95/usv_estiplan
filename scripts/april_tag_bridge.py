@@ -42,7 +42,7 @@ def UavStateCallback(msg):
 
 def ProcessTag(msg, i):
     global tag_msg, tag_pub, tag_frame, tag_selected_id_pub, tag_timeout
-    tag_msg.header.stamp = rospy.Time.now()
+    tag_msg.header.stamp = msg.header.stamp
     tag_msg.header.frame_id = tag_frame
     tag_msg.pose.position.x = msg.detections[i].pose.pose.pose.position.x
     tag_msg.pose.position.y = msg.detections[i].pose.pose.pose.position.y
