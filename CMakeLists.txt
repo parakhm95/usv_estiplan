@@ -139,6 +139,7 @@ include_directories(
 add_executable(fft_node src/fft_estimate.cpp)
 add_executable(wave_prediction_node src/wave_prediction.cpp)
 add_executable(wave_generation_node src/wave_generator.cpp)
+add_executable(usv_state_prediction_node src/usv_state_prediction.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -156,6 +157,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 add_dependencies(fft_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(wave_prediction_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(wave_generation_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(usv_state_prediction_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(fft_node
   ${catkin_LIBRARIES}
@@ -167,6 +169,10 @@ target_link_libraries(wave_prediction_node
 )
 target_link_libraries(wave_generation_node
   ${catkin_LIBRARIES}
+)
+target_link_libraries(usv_state_prediction_node
+  ${catkin_LIBRARIES}
+  Eigen3::Eigen
 )
 
 #############
