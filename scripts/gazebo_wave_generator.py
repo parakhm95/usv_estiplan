@@ -52,7 +52,7 @@ def bridge():
     rate = rospy.Rate(tag_publish_rate)
     while not rospy.is_shutdown():
         model_msg.reference_frame = 'world'
-        model_msg.pose.position.x = CONSTANT_OFFSET_X
+        model_msg.pose.position.x += 0.01
         model_msg.pose.position.y = CONSTANT_OFFSET_Y
         model_msg.pose.position.z = CONSTANT_OFFSET_Z
 
@@ -71,6 +71,10 @@ def bridge():
             yaw += yaw_wave[i, 1] * \
                 math.sin(
                     (2 * math.pi * yaw_wave[i, 0]*elap_time)+yaw_wave[i, 2])
+
+        roll = 0.0
+        pitch = 0.0
+        yaw = 0.0
 
         quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
         model_msg.pose.orientation.x = quaternion[0]

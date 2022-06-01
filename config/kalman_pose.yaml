@@ -1,0 +1,4 @@
+r: 0.001
+q: 0.01 # q upto 2n
+diagnostics: true # true for on, false for off
+online_tune: false # true for tuning, false for not

@@ -33,6 +33,13 @@
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
+
+    <!-- usv_state_prediction node -->
+    <node name="usv_state_prediction" pkg="usv_estiplan" type="usv_state_prediction_node" output="screen">
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pose.yaml" />
+        <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
+    </node>
     
     <!-- Wave generator node -->
     <node name="gazebo_wave_generator" pkg="usv_estiplan" type="gazebo_wave_generator.py" output="screen"/>
