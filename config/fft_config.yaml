@@ -1,5 +1,5 @@
 # dof_name: "x"
-freq_accuracy: 0.01
+freq_accuracy: 0.1
 fft_interval: 5.0 # 5 seconds or 0.2 Hz
 fft_threshold: 0.05 # Amplitude less than 5% of max is discarded
 hanning_window: false # WARNING : Hanning doesn't work with DC component

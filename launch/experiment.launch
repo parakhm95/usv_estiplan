@@ -37,6 +37,12 @@
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
     
+    <!-- usv_state_prediction node -->
+    <node name="usv_state_prediction" pkg="usv_estiplan" type="usv_state_prediction_node" output="screen">
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pose.yaml" />
+        <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
+    </node>
     <!-- April tag brige -->
     <node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen">
         <remap from="~base_detections_out" to="$(arg ODOM_TOPIC)" />

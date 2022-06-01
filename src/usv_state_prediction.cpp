@@ -137,6 +137,7 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
         p_k_dash;
   x_t = x_predicted;
   p_k_dash = p_k;
+  std::cout << p_k_dash << std::endl;
   msg_time = ros::Time::now().toNSec();
   usv_msg.pose.pose.position.x = x_predicted(0);
   usv_msg.pose.pose.position.y = x_predicted(1);
