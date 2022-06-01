@@ -42,12 +42,14 @@ ros::Publisher wave_observer;
 ros::Publisher wave_decoded;
 ros::Publisher wave_future;
 ros::Publisher pose_pred_pub;
+double last_update_time;
 string dof_name;
 double t_future = 0.0;
 double pred_horizon = 0.0;
 bool horizon_loaded = false;
 bool _diagnostics_ = false;
 bool _online_tune_ = true;
+bool tag_received = false;
 Eigen::Matrix<double, OUTPUT_COMPONENTS, 1> w_k_hat =
     Eigen::MatrixXd::Zero(OUTPUT_COMPONENTS, 1);
 Eigen::Matrix<double, OUTPUT_COMPONENTS, 1> w_k =
@@ -95,6 +97,10 @@ Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 ros::Publisher detected_output;
 
 void OdomCallback(const geometry_msgs::PoseStamped &msg) {
+  tag_received = true;
+  double measurement_delta =
+      (ros::Time::now().toNSec() - last_update_time) * 1e-9;
+  std::cout << "measurement_delta: " << measurement_delta << std::endl;
   w_k(0) = msg.pose.position.x;
   w_k(1) = msg.pose.position.y;
   w_k(2) = msg.pose.position.z;
@@ -115,7 +121,10 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
       }
     }
   }
-  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
+  phi.coeffRef(0, 3) = measurement_delta;
+  phi.coeffRef(1, 4) = measurement_delta;
+  phi.coeffRef(2, 5) = measurement_delta;
+  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
   p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
   l_k = p_k_dash * c_t.transpose() *
         (c_t * p_k_dash * c_t.transpose() + r).inverse();
@@ -137,6 +146,7 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
   usv_msg.twist.twist.linear.z = x_predicted(5);
   usv_msg.header.stamp = ros::Time::now();
   wave_observer.publish(usv_msg);
+  last_update_time = ros::Time::now().toNSec();
 }
 
 int main(int argc, char **argv) {
@@ -151,6 +161,7 @@ int main(int argc, char **argv) {
   phi.coeffRef(0, 3) = sample_time;
   phi.coeffRef(1, 4) = sample_time;
   phi.coeffRef(2, 5) = sample_time;
+  last_update_time = ros::Time::now().toNSec();
   if (!estiplan.getParam("t_future", t_future)) {
     ROS_WARN("WAVE_PRED:t_future loading failed, using 0.0 default");
   }
@@ -182,8 +193,8 @@ int main(int argc, char **argv) {
   ros::Subscriber sub_pose =
       estiplan.subscribe("odometry_in", 1000, OdomCallback);
   wave_observer = estiplan.advertise<nav_msgs::Odometry>("observer", 1000);
-  pose_pred_pub =
-      estiplan.advertise<geometry_msgs::PoseArray>("pose_pred_out", 1000);
+  pose_pred_pub = estiplan.advertise<geometry_msgs::PoseArray>(
+      "pose_predictions_out", 1000);
   // detected_output =
   //     estiplan.advertise<usv_estiplan::Fftarray>("idenitification", 1000);
   // ros::ServiceServer prediction_srv = estiplan.advertiseService(
@@ -208,7 +219,9 @@ int main(int argc, char **argv) {
     }
     pose_pred_msg.header.stamp = ros::Time::now();
     pose_pred_msg.header.frame_id = "uav1/gps_origin";
-    pose_pred_pub.publish(pose_pred_msg);
+    if (tag_received && p_k_dash(3, 3) < 0.05) {
+      pose_pred_pub.publish(pose_pred_msg);
+    }
 
     ros::spinOnce();
     loop_rate.sleep();
