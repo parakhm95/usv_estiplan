@@ -402,12 +402,30 @@ int main(int argc, char **argv) {
       }
     }
     double pred_time = 0.01;
+    /* Fix for issue 20 : We had written a method where ReturnKalmanPrediction
+     * was called 100 times for a prediction and it led to the computation of
+     * Phi matrix 100 times per run. This maxed out the machine and led to all
+     * sorts of nightmares. For optimization, we first bring prediction to
+     * current time step and then advance it using a phi that is calculated for
+     * 0.01 timestep. This enables us to compute Phi just twice per run. A 50
+     * times reduction. */
+    Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
+        temporary_p_k_dash = Eigen::MatrixXd::Identity(
+            2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1));
+    Eigen::VectorXd temporary_x_predicted(2 * (WAVE_COMPONENTS + 1),
+                                          1);  // X_k+1 predicted
+    temporary_x_predicted = x_t;
+    double measurement_delta = ros::Time::now().toSec() - last_msg_time_secs;
+    phi = (a_t * (measurement_delta)).exp();
+    temporary_x_predicted = phi * temporary_x_predicted;
+    phi = (a_t * (0.01)).exp();
     for (size_t i = 0; i < pred_horizon; i++) {
-      wave_future_msg.zeroth = ReturnKalmanPrediction(pred_time);
+      temporary_x_predicted = phi * temporary_x_predicted;
+      w_k_hat = c_t * temporary_x_predicted;
+      wave_future_msg.zeroth = w_k_hat(0);
       prediction_publisher.publish(wave_future_msg);
       pred_time += 0.01;
     }
-
     if (ros::isShuttingDown()) {
     }
     ros::spinOnce();
