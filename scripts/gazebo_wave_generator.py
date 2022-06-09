@@ -99,6 +99,7 @@ def bridge():
                 tag_msg.pose.orientation.y = quaternion[1]
                 tag_msg.pose.orientation.z = quaternion[2]
                 tag_msg.pose.orientation.w = quaternion[3]
+                tag_msg.header.stamp = rospy.Time.now()
 
                 rpy_msg.x = roll
                 rpy_msg.y = pitch

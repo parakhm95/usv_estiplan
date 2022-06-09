@@ -39,6 +39,7 @@ ros::Publisher wave_future;
 string dof_name;
 double t_future = 0.0;
 double pred_horizon = 0.0;
+double last_msg_time_secs = 0.0;
 bool horizon_loaded = false;
 bool _diagnostics_ = false;
 bool _online_tune_ = true;
@@ -82,6 +83,20 @@ Eigen::VectorXd amplitude(1);
 // std::ofstream csv_debug;
 Eigen::IOFormat CSVFormat(4, Eigen::DontAlignCols, ";", "\n");
 ros::Publisher detected_output;
+
+double ReturnKalmanPrediction(double future_time) {
+  Eigen::Matrix<double, 2 * (WAVE_COMPONENTS + 1), 2 * (WAVE_COMPONENTS + 1)>
+      temporary_p_k_dash = Eigen::MatrixXd::Identity(2 * (WAVE_COMPONENTS + 1),
+                                                     2 * (WAVE_COMPONENTS + 1));
+  Eigen::VectorXd temporary_x_predicted(2 * (WAVE_COMPONENTS + 1),
+                                        1);  // X_k+1 predicted
+  temporary_x_predicted = x_t;
+  double measurement_delta = ros::Time::now().toSec() - last_msg_time_secs;
+  phi = (a_t * (measurement_delta + future_time)).exp();
+  temporary_x_predicted = phi * temporary_x_predicted;
+  w_k_hat = c_t * temporary_x_predicted;
+  return w_k_hat(0);
+}
 
 void PredictWaveFuture(double pred_time, double &time_of_msg, double &zeroth,
                        double &first, double &second) {
@@ -199,7 +214,9 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
   }
 
   if (!first_start) {
-    q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
+    double measurement_delta = msg.header.stamp.toSec() - last_msg_time_secs;
+    phi = (a_t * measurement_delta).exp();
+    q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
     p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
     l_k = p_k_dash * c_t.transpose() *
           (c_t * p_k_dash * c_t.transpose() + r).inverse();
@@ -217,15 +234,14 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
     wave_msg.data = w_k_hat(0);
     wave_msg.header.stamp = ros::Time::now();
     wave_observer.publish(wave_msg);
-    PredictWaveFuture(t_future, wave_future_msg.pred_time,
-                      wave_future_msg.zeroth, wave_future_msg.first,
-                      wave_future_msg.second);
+    wave_future_msg.zeroth = ReturnKalmanPrediction(t_future);
     wave_future_msg.header.stamp = ros::Time::now();
     wave_future.publish(wave_future_msg);
     if (_diagnostics_) {
       detected_output.publish(ident_msg);
     }
   }
+  last_msg_time_secs = msg.header.stamp.toSec();
 }
 
 void FftCallback(usv_estiplan::Fftresult in_msg) {
@@ -289,13 +305,12 @@ void FftCallback(usv_estiplan::Fftresult in_msg) {
       spot_avlb += 1;
     }
   }
-  // updating Phi
-  phi = (a_t * sample_time).exp();
 }
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "wave_prediction", ros::init_options::AnonymousName);
   ros::NodeHandle estiplan("~");
+  last_msg_time_secs = ros::Time::now().toSec();
   if (argc != 2) {
     ROS_ERROR("Specify the DOF arg in launch file");
     return -1;
@@ -388,9 +403,7 @@ int main(int argc, char **argv) {
     }
     double pred_time = 0.01;
     for (size_t i = 0; i < pred_horizon; i++) {
-      PredictWaveFuture(pred_time, wave_future_msg.pred_time,
-                        wave_future_msg.zeroth, wave_future_msg.first,
-                        wave_future_msg.second);
+      wave_future_msg.zeroth = ReturnKalmanPrediction(pred_time);
       prediction_publisher.publish(wave_future_msg);
       pred_time += 0.01;
     }

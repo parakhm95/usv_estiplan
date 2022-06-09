@@ -19,7 +19,7 @@
 
     <!-- Roll wave prediction node -->
     <node name="wave_prediction_roll" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="roll">
-        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pitch.yaml" />
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_artificial.yaml" />
 
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
@@ -27,28 +27,28 @@
 
     <!-- Pitch wave prediction node -->
     <node name="wave_prediction_pitch" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="pitch">
-        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pitch.yaml" />
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_artificial.yaml" />
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
 
     <!-- X wave prediction node -->
     <node name="wave_prediction_x" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="x">
-        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pitch.yaml" />
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_artificial.yaml" />
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
 
     <!-- Y wave prediction node -->
     <node name="wave_prediction_y" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="y">
-        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pitch.yaml" />
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_artificial.yaml" />
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
 
     <!-- Z wave prediction node -->
     <node name="wave_prediction_z" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="z">
-        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pitch.yaml" />
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_artificial.yaml" />
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
     </node>
