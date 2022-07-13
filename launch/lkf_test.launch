@@ -1,0 +1,47 @@
+<launch>
+<arg name="UAV_NAME" default="$(env UAV_NAME)" />
+<arg name="SAMPLING_FREQ" default="30" />
+<arg name="CAMERA_NAME" value="basler_$(env BASLER)" />
+<arg name="ODOM_TOPIC" value="base_detections" />
+<arg name="TAG_TOPIC" default="tag_detections" />
+<arg name="FFT_TOPIC" value="fft_output" />
+<arg name="T_FUTURE" value="1.0" />
+<arg name="TAG_FRAME_GLOBAL" value="$(arg UAV_NAME)/gps_origin" />
+<param name="use_sim_time" value="true" />
+<group ns="uav42">
+
+    <!-- Params that are common to all the nodes -->
+    <param name="~sampling_freq" value="$(arg SAMPLING_FREQ)" />
+    <param name="~t_future" value="$(arg T_FUTURE)" />
+    <param name="~tag_frame" value="$(arg TAG_FRAME_GLOBAL)" />
+
+    <!-- FFT Node -->
+    <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen">
+        <rosparam command="load" file="$(find usv_estiplan)/config/fft_config.yaml" />
+        <remap from="~odom_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_out" to="~$(arg FFT_TOPIC)" />
+    </node>
+
+    <!-- Roll wave prediction node -->
+    <node name="wave_prediction_roll_kalman" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="roll">
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_artificial.yaml" />
+
+        <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
+    </node>
+
+    <!-- Pitch wave prediction node -->
+    <node name="wave_prediction_pitch_kalman" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="pitch">
+        <rosparam command="load" file="$(find usv_estiplan)/config/kalman_artificial.yaml" />
+        <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
+        <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
+    </node>
+
+    <node pkg="rosbag" type="record" name="rosbag_record_lmpc"
+       args="record -e '(.*)lmpc_(.*)' '(.*)fft_(.*)' '(.*)_observer(.*)' '(.*)_decoded(.*)' '(.*)_future(.*)' '(.*)base_detections(.*)' '(.*)odometry/uav_state(.*)' /gazebo/set_model_state '(.*)control_manager/velocity_reference(.*)' /gazebo/model_states '(.*)rs_d435/color/tag_detections(.*)' '(.*)laser_lmpc_bridge/state_machine(.*)' '(.*)control_manager/diagnostics(.*)' '(.*)garmin/range(.*)' '(.*)odometry/imu_untilted(.*)' '(.*)mavros/imu/data(.*)' -o /home/pmg/Documents/lkf_test_fixed.bag" />
+
+</group>
+<!-- <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" /> -->
+</launch>
+
+
