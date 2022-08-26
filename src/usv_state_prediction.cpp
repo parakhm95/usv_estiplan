@@ -208,6 +208,9 @@ int main(int argc, char **argv) {
     }
     geometry_msgs::PoseArray pose_pred_msg;
     x_predicted_pred = x_t;
+    phi.coeffRef(0, 3) = 0.01;
+    phi.coeffRef(1, 4) = 0.01;
+    phi.coeffRef(2, 5) = 0.01;
     for (size_t i = 0; i < 100; i++) {
       q_dash_predict = 0.5 * ((phi * q * phi.transpose()) + q) * sample_time;
       p_k_dash_pred = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
