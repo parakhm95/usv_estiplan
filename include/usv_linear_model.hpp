@@ -1,6 +1,6 @@
-
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <ros/ros.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 
@@ -30,7 +30,7 @@ class LinearModel {
   LinearModel(/* args */);
   ~LinearModel();
   void updateModel(const geometry_msgs::PoseStamped &msg);
-  void initialiseModel(const geometry_msgs::PoseStamped &msg);
+  void initialiseModel(ros::NodeHandle &nh);
   double getYaw(const geometry_msgs::PoseStamped &msg);
   void getPrediction(geometry_msgs::Pose &msg, double time_elapsed);
   double getCovarianceOfVxy();

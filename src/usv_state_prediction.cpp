@@ -16,14 +16,11 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "nav_msgs/Odometry.h"
-#include "ros/ros.h"
 using namespace std;
 
 #define REAL 0
 #define IMAG 1
 
-const int STATE_COMPONENTS = 8;
-const int OUTPUT_COMPONENTS = 3;
 geometry_msgs::Pose temp_msg;
 ros::Publisher wave_observer_model1;
 ros::Publisher wave_observer_model2;
@@ -31,23 +28,15 @@ ros::Publisher pose_pred_pub_model1;
 ros::Publisher pose_pred_pub_model2;
 double last_update_time;
 bool tag_received = false;
-Eigen::Matrix<double, STATE_COMPONENTS, 1> x_predicted_pred;  // X_k+1 predicted
-// Phi_0
-Eigen::Matrix<double, STATE_COMPONENTS, STATE_COMPONENTS> p_k_dash_pred =
-    Eigen::MatrixXd::Identity(STATE_COMPONENTS, STATE_COMPONENTS);
-// P_k+1 actual
-Eigen::Matrix<double, STATE_COMPONENTS, STATE_COMPONENTS> q_dash_predict;
-// row-0 is last, row-1 is current
-// true is present, false is notpresent
 
 // std::ofstream csv_debug;
 LinearModel model1;
 
 void OdomCallback(const geometry_msgs::PoseStamped &msg) {
+  ROS_INFO("[Tag message received]");
   tag_received = true;
-
   model1.updateModel(msg);
-  model1.getPrediction(temp_msg);
+  model1.getPrediction(temp_msg, 0.00);
   wave_observer_model1.publish(temp_msg);
 }
 
@@ -55,21 +44,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "usv_state_prediction",
             ros::init_options::AnonymousName);
   ros::NodeHandle estiplan("~");
-  if (!estiplan.getParam("r", r(0, 0))) {
-    ROS_WARN("WAVE_PRED:KF_r loading failed, quitting");
-  }
-  if (!estiplan.getParam("r", r(1, 1))) {
-    ROS_WARN("WAVE_PRED:KF_r loading failed, quitting");
-  }
-  if (!estiplan.getParam("r", r(2, 2))) {
-    ROS_WARN("WAVE_PRED:KF_r loading failed, quitting");
-  }
-  for (size_t i = 0; i < STATE_COMPONENTS; i++) {
-    if (!estiplan.getParam("q", q(i, i))) {
-      ROS_WARN("WAVE_PRED:KF_q loading failed, quitting");
-      return -1;
-    }
-  }
+  model1.initialiseModel(estiplan);
   // std::cout << c_t << std::endl;
   ros::Subscriber sub_pose =
       estiplan.subscribe("odometry_in", 1000, OdomCallback);
@@ -101,7 +76,6 @@ int main(int argc, char **argv) {
     if (tag_received && model1.getCovarianceOfVxy() < 0.05) {
       pose_pred_pub_model1.publish(pose_pred_msg);
     }
-
     ros::spinOnce();
     loop_rate.sleep();
   }

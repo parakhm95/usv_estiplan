@@ -17,10 +17,11 @@ LinearModel::LinearModel(/* args */) {
   c_t(1, 1) = 1.0;
   c_t(2, 2) = 1.0;
   c_t(3, 3) = 1.0;
-  last_update_time_ = ros::Time::now().toSec();
 }
 
 LinearModel::~LinearModel() {}
+
+
 
 double LinearModel::getYaw(const geometry_msgs::PoseStamped &msg) {
   tf2::Quaternion quat(msg.pose.orientation.x, msg.pose.orientation.y,
@@ -31,15 +32,30 @@ double LinearModel::getYaw(const geometry_msgs::PoseStamped &msg) {
   return yaw;
 }
 
-void LinearModel::initialiseModel(const geometry_msgs::PoseStamped &msg) {
-  x_t(0) = msg.pose.position.x;
-  x_t(1) = msg.pose.position.y;
-  x_t(2) = msg.pose.position.z;
-  x_t(3) = getYaw(msg);
+void LinearModel::initialiseModel(ros::NodeHandle &nh) {
+	double r_temp = 0.0;
+	double q_temp = 0.0;
+	if (!nh.getParam("linear_model/r", r_temp)) {
+		ROS_WARN("[LinearModel] : Couldn't load r");
+	}
+	if (!nh.getParam("linear_model/q", q_temp)) {
+		ROS_WARN("[LinearModel] : Couldn't load q");
+  }
+
+  r(0, 0) = r_temp;
+  r(1, 1) = r_temp;
+  r(2, 2) = r_temp;
+  r(3, 3) = r_temp;
+  for (size_t i = 0; i < STATE_COMPONENTS_; i++) {
+    q(i, i) = q_temp;
+  }
+
+  last_update_time_ = ros::Time::now().toSec();
 }
 
 void LinearModel::updateModel(const geometry_msgs::PoseStamped &msg) {
   double measurement_delta = ros::Time::now().toSec() - last_update_time_;
+  last_update_time_ = ros::Time::now().toSec();
   w_k(0) = msg.pose.position.x;
   w_k(1) = msg.pose.position.y;
   w_k(2) = msg.pose.position.z;
@@ -61,7 +77,6 @@ void LinearModel::updateModel(const geometry_msgs::PoseStamped &msg) {
         p_k_dash;
   x_t = x_predicted;
   p_k_dash = p_k;
-  last_update_time_ = ros::Time::now().toSec();
 }
 
 void LinearModel::getPrediction(geometry_msgs::Pose &msg, double time_elapsed) {
@@ -78,11 +93,14 @@ void LinearModel::getPrediction(geometry_msgs::Pose &msg, double time_elapsed) {
     msg.orientation.w = myQuaternion.getW();
     return;
   }
+  double measurement_delta =
+      ros::Time::now().toSec() - last_update_time_ + time_elapsed;
 
-  phi(0, 4) = time_elapsed;
-  phi(1, 5) = time_elapsed;
-  phi(2, 6) = time_elapsed;
-  phi(3, 7) = time_elapsed;
+  x_predicted = x_t;
+  phi(0, 4) = measurement_delta;
+  phi(1, 5) = measurement_delta;
+  phi(2, 6) = measurement_delta;
+  phi(3, 7) = measurement_delta;
   x_predicted = phi * x_predicted;
   msg.position.x = x_predicted(0);
   msg.position.y = x_predicted(1);
