@@ -5,6 +5,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <queue>
 #include <sstream>
 
@@ -28,6 +29,9 @@ const int WAVE_COMPONENTS = 20;
 float fft_threshold = 0.02;
 bool _hanning_window_ = false;
 bool _debug_ = false;
+int _peak_lag_ = 0;
+float _peak_threshold_ = 0.0;
+float _peak_influence_ = 0.0;
 queue<float> x_queue;
 queue<float> y_queue;
 queue<float> z_queue;
@@ -50,6 +54,68 @@ std::ofstream debug_file_yaw;
 usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw,
                                   std::ofstream &debug_file);
 void executeFft(queue<float> queue_in, fftw_complex *out_fftw);
+void detectPeaks();
+double findMean(std::vector<double> input);
+double findStdDev(std::vector<double> input);
+
+double findMean(std::vector<double> input) {
+  double sum_of_elems = 0.0;
+  sum_of_elems = std::accumulate(input.begin(), input.end(), 0.0);
+  return sum_of_elems / input.size();
+}
+
+double findStdDev(std::vector<double> input) {
+  double mean = findMean(input);
+  double std_dev = 0.0;
+  for (size_t i = 0; i < input.size(); i++) {
+    std_dev += (mean - input[i]) * (mean - input[i]);
+  }
+  return sqrt(std_dev / (input.size() - 1));
+}
+
+std::vector<int> detectPeaks(std::vector<double> input) {
+  // lag 5 for the smoothing functions
+  int lag = _peak_lag_;
+  // 3.5 standard deviations for signal
+  float threshold = _peak_threshold_;
+  // between 0 and 1, where 1 is normal influence, 0.5 is half
+  float influence = _peak_influence_;
+
+  if (input.size() <= lag + 2) {
+    std::vector<int> emptyVec;
+    return emptyVec;
+  }
+
+  // Initialise variables
+  std::vector<int> signals(input.size(), 0.0);
+  std::vector<double> filteredY(input.size(), 0.0);
+  std::vector<double> avgFilter(input.size(), 0.0);
+  std::vector<double> stdFilter(input.size(), 0.0);
+  std::vector<double> subVecStart(input.begin(), input.begin() + lag);
+  avgFilter[lag] = findMean(subVecStart);
+  stdFilter[lag] = findStdDev(subVecStart);
+
+  for (size_t i = lag + 1; i < input.size(); i++) {
+    if (std::abs(input[i] - avgFilter[i - 1]) > threshold * stdFilter[i - 1]) {
+      if (input[i] > avgFilter[i - 1]) {
+        signals[i] = 1;  //# Positive signal
+      } else {
+        signals[i] = -1;  //# Negative signal
+      }
+      // Make influence lower
+      filteredY[i] = influence * input[i] + (1 - influence) * filteredY[i - 1];
+    } else {
+      signals[i] = 0;  //# No signal
+      filteredY[i] = input[i];
+    }
+    // Adjust the filters
+    std::vector<double> subVec(filteredY.begin() + i - lag,
+                               filteredY.begin() + i);
+    avgFilter[i] = findMean(subVec);
+    stdFilter[i] = findStdDev(subVec);
+  }
+  return signals;
+}
 
 void queue_things(queue<float> &queue_in, float push_in) {
   while (queue_in.size() > MAX_QUEUE - 1) {
@@ -113,6 +179,16 @@ int main(int argc, char **argv) {
   if (!estiplan.getParam("debug", _debug_)) {
     ROS_WARN("FFT: _debug_ loading failed, defaulting to false");
   }
+
+  if (!estiplan.getParam("peak_lag", _peak_lag_)) {
+    ROS_WARN("FFT: _peak_lag_ loading failed, defaulting to false");
+  }
+  if (!estiplan.getParam("peak_influence", _peak_influence_)) {
+    ROS_WARN("FFT: _peak_influence_ loading failed, defaulting to false");
+  }
+  if (!estiplan.getParam("peak_threshold", _peak_threshold_)) {
+    ROS_WARN("FFT: _peak_threshold_ loading failed, defaulting to false");
+  }
   if (_debug_) {
     debug_file_x.open("/tmp/debug_fft_x.csv");
     debug_file_y.open("/tmp/debug_fft_y.csv");
@@ -121,6 +197,17 @@ int main(int argc, char **argv) {
     debug_file_pitch.open("/tmp/debug_fft_pitch.csv");
     debug_file_yaw.open("/tmp/debug_fft_yaw.csv");
   }
+  std::vector<double> test_vector = {1,   1.5, 1,   1.5, 3,  2,
+                                     2.0, 1.3, 1.4, 1.3, 1.2};
+  std::cout << "Test Mean is: " << findMean(test_vector)
+            << " Test Std Dev: " << findStdDev(test_vector) << "\n";
+  std::string header_string = "frequency;amplitude;phase;signal\n";
+  debug_file_pitch << header_string;
+  debug_file_roll << header_string;
+  debug_file_yaw << header_string;
+  debug_file_z << header_string;
+  debug_file_y << header_string;
+  debug_file_x << header_string;
   MAX_QUEUE = samp_freq / freq_accuracy;
   ros::Subscriber sub = estiplan.subscribe("odom_in", 1000, odomCallback);
   ros::Publisher fft_transform =
@@ -182,7 +269,7 @@ int main(int argc, char **argv) {
 
     fft_transform.publish(fft_result);
     if (ros::isShuttingDown()) {
-      std::cout << "Close bitch" << std::endl;
+      std::cout << "Closing files" << std::endl;
       debug_file_x.close();
       debug_file_y.close();
       debug_file_z.close();
@@ -217,9 +304,7 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw,
     wave_vec[i][1] = 0.0;
     wave_vec[i][2] = 0.0;
   }
-  std::string freq_csv = "frequency;";
-  std::string amp_csv = "amplitude;";
-  std::string phase_csv = "phase;";
+  std::string temp_string = "";
   for (int i = 1; i < fft_size / 2; i++) {
     // Frequency
     wave_vec[i][0] = i * float(samp_freq / 2) / (fft_size / 2);
@@ -235,20 +320,24 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw,
       wave_vec[i][1] = wave_vec[i][1] / 2;
       wave_vec[i][2] = M_PI / 2;
     }
+  }
+  std::vector<double> flat_vec;
+  for (size_t i = 1; i < fft_size / 2; i++) {
+    flat_vec.push_back(wave_vec[int((fft_size / 2)) - i][1]);
+  }
+
+  std::vector<int> peak_signal = detectPeaks(flat_vec);
+  for (int i = 1; i < fft_size / 2; i++) {
     if (_debug_) {
-      freq_csv += std::to_string(wave_vec[i][0]) + ";";
-      amp_csv += std::to_string(wave_vec[i][1]) + ";";
-      phase_csv += std::to_string(wave_vec[i][2]) + ";";
+      temp_string += std::to_string(wave_vec[i][0]) + ";";
+      temp_string += std::to_string(wave_vec[i][1]) + ";";
+      temp_string += std::to_string(wave_vec[i][2]) + ";";
+      temp_string +=
+          std::to_string(wave_vec[i][1] * peak_signal[(fft_size / 2) - i - 1]) +
+          "\n";
     }
   }
-  if (_debug_) {
-    freq_csv += "\n";
-    amp_csv += "\n";
-    phase_csv += "\n";
-    debug_file << freq_csv;
-    debug_file << amp_csv;
-    debug_file << phase_csv;
-  }
+
   sort(wave_vec.begin(), wave_vec.end(), sortcol);
   usv_estiplan::Fftarray fft_array;
   //------------Fix for Issue #8-----------
@@ -264,11 +353,17 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw,
       fft_array.frequency[i] = wave_vec[i][0];
       fft_array.amplitude[i] = wave_vec[i][1];
       fft_array.phase[i] = wave_vec[i][2];
+      // temp_string += std::to_string(fft_array.frequency[i]) + ";";
+      // temp_string += std::to_string(fft_array.amplitude[i]) + ";";
     } else {
       fft_array.frequency[i] = 0.0;
       fft_array.amplitude[i] = 0.0;
       fft_array.phase[i] = 0.0;
     }
+  }
+  if (_debug_) {
+    // temp_string += "\n";
+    debug_file << temp_string;
   }
   return fft_array;
 }
