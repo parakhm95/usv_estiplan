@@ -29,6 +29,7 @@ const int WAVE_COMPONENTS = 20;
 float fft_threshold = 0.02;
 bool _hanning_window_ = false;
 bool _debug_ = false;
+bool _peak_finding_ = false;
 int _peak_lag_ = 0;
 float _peak_threshold_ = 0.0;
 float _peak_influence_ = 0.0;
@@ -178,6 +179,9 @@ int main(int argc, char **argv) {
   }
   if (!estiplan.getParam("debug", _debug_)) {
     ROS_WARN("FFT: _debug_ loading failed, defaulting to false");
+  }
+  if (!estiplan.getParam("peak_finding", _peak_finding_)) {
+    ROS_WARN("FFT: _peak_finding_ loading failed, defaulting to false");
   }
 
   if (!estiplan.getParam("peak_lag", _peak_lag_)) {
@@ -335,6 +339,9 @@ usv_estiplan::Fftarray processFft(int fft_size, fftw_complex *out_fftw,
       temp_string +=
           std::to_string(wave_vec[i][1] * peak_signal[(fft_size / 2) - i - 1]) +
           "\n";
+    }
+    if (_peak_finding_) {
+      wave_vec[i][1] *= abs(peak_signal[(fft_size / 2) - i - 1]);
     }
   }
 
