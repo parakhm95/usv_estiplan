@@ -21,10 +21,11 @@ wave_number = 10
 CONSTANT_OFFSET_X = 3.0
 CONSTANT_OFFSET_Y = 3.0
 CONSTANT_OFFSET_Z = 2.0
+x_velocity = 0.0    
+y_velocity = 0.0    
 elap_time = 0.0000
 # freq, amp, phase
-z_wave = np.array([[0.1, 0.3, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [
-                  0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+z_wave = np.array([[0.11, 0.28, 0.0], [0.05, 0.28, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 roll_wave = np.array([[0.1, 0.18, 0.0], [0.12, 0.02, 0.0], [0.14, 0.06, 0.0], [0.08, 0.2, 0.0], [
                      0.11, 0.28, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 pitch_wave = np.array([[0.1, 0.18, 0.0], [0.08, 0.03, 0.0], [0.02, 0.08, 0.0], [0.05, 0.2, 0.0], [
@@ -47,14 +48,21 @@ def callback(msg):
 
 
 def bridge():
+    global x_velocity, y_velocity
     rospy.init_node('gazebo_wave_generator', anonymous=True)
     # rospy.Subscriber("/uav1/rs_d435/color/base_detections", PoseStamped, callback)
     rate = rospy.Rate(tag_publish_rate)
     while not rospy.is_shutdown():
         model_msg.reference_frame = 'world'
-        model_msg.pose.position.x = CONSTANT_OFFSET_X
-        model_msg.pose.position.y = CONSTANT_OFFSET_Y
         model_msg.pose.position.z = CONSTANT_OFFSET_Z
+        acc_max = 3.5
+        random_x_acc = -acc_max + acc_max*random.random()
+        random_y_acc = -acc_max + acc_max*random.random()
+        dt = 0.033
+        x_velocity += random_x_acc*dt
+        y_velocity += random_y_acc*dt
+        model_msg.pose.position.x = CONSTANT_OFFSET_X + x_velocity*dt
+        model_msg.pose.position.y = CONSTANT_OFFSET_Y + y_velocity*dt
 
         roll = 0.0
         pitch = 0.0
@@ -62,7 +70,7 @@ def bridge():
         # model_msg.pose.position.z = 0.0
         elap_time = rospy.Time.now().to_sec()
         for i in range(wave_number):
-            # model_msg.pose.position.z += z_wave[i,1] * math.sin((2* math.pi *z_wave[i,0]*elap_time)+z_wave[i,2])
+            model_msg.pose.position.z += z_wave[i,1] * math.sin((2* math.pi *z_wave[i,0]*elap_time)+z_wave[i,2])
             roll += roll_wave[i, 1] * \
                 math.sin(
                     (2 * math.pi * roll_wave[i, 0]*elap_time)+roll_wave[i, 2])
