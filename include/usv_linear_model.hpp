@@ -7,7 +7,7 @@
 #include <Eigen/Dense>
 
 class LinearModel {
- private:
+private:
   double last_update_time_;
   double OUTPUT_COMPONENTS_ = 4;
   double STATE_COMPONENTS_ = 8;
@@ -26,7 +26,7 @@ class LinearModel {
   Eigen::MatrixXd w_k_hat;
   geometry_msgs::Pose msg_prediction_;
   /* data */
- public:
+public:
   LinearModel(/* args */);
   ~LinearModel();
   void updateModel(const geometry_msgs::PoseStamped &msg);

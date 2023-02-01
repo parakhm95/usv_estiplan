@@ -21,8 +21,6 @@ LinearModel::LinearModel(/* args */) {
 
 LinearModel::~LinearModel() {}
 
-
-
 double LinearModel::getYaw(const geometry_msgs::PoseStamped &msg) {
   tf2::Quaternion quat(msg.pose.orientation.x, msg.pose.orientation.y,
                        msg.pose.orientation.z, msg.pose.orientation.w);
