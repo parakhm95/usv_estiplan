@@ -33,21 +33,41 @@ double LinearModel::getYaw(const geometry_msgs::PoseStamped &msg) {
 }
 
 void LinearModel::initialiseModel(ros::NodeHandle &nh) {
-	double r_temp = 0.0;
-	double q_temp = 0.0;
-	if (!nh.getParam("linear_model/r", r_temp)) {
-		ROS_WARN("[LinearModel] : Couldn't load r");
-	}
-	if (!nh.getParam("linear_model/q", q_temp)) {
-		ROS_WARN("[LinearModel] : Couldn't load q");
+  if (!nh.getParam("linear_model/r_xy", r(0, 0))) {
+    ROS_WARN("[LinearModel] : Couldn't load r_xy");
   }
-
-  r(0, 0) = r_temp;
-  r(1, 1) = r_temp;
-  r(2, 2) = r_temp;
-  r(3, 3) = r_temp;
-  for (size_t i = 0; i < STATE_COMPONENTS_; i++) {
-    q(i, i) = q_temp;
+  if (!nh.getParam("linear_model/r_xy", r(1, 1))) {
+    ROS_WARN("[LinearModel] : Couldn't load r_xy");
+  }
+  if (!nh.getParam("linear_model/r_z", r(2, 2))) {
+    ROS_WARN("[LinearModel] : Couldn't load r_z");
+  }
+  if (!nh.getParam("linear_model/r_heading", r(3, 3))) {
+    ROS_WARN("[LinearModel] : Couldn't load r_heading");
+  }
+  if (!nh.getParam("linear_model/q_xy", q(0, 0))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_xy");
+  }
+  if (!nh.getParam("linear_model/q_xy", q(1, 1))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_xy");
+  }
+  if (!nh.getParam("linear_model/q_z", q(2, 2))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_z");
+  }
+  if (!nh.getParam("linear_model/q_heading", q(3, 3))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_heading");
+  }
+  if (!nh.getParam("linear_model/q_v_xy", q(4, 4))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_v_xy");
+  }
+  if (!nh.getParam("linear_model/q_v_xy", q(5, 5))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_v_xy");
+  }
+  if (!nh.getParam("linear_model/q_v_z", q(6, 6))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_v_z");
+  }
+  if (!nh.getParam("linear_model/q_heading_rate", q(7, 7))) {
+    ROS_WARN("[LinearModel] : Couldn't load q_heading_rate");
   }
 
   last_update_time_ = ros::Time::now().toSec();
@@ -114,6 +134,20 @@ void LinearModel::getPrediction(geometry_msgs::Pose &msg, double time_elapsed) {
   msg.orientation.w = myQuaternion.getW();
 }
 
-double LinearModel::getCovarianceOfVxy() {
-  return p_k_dash(4, 4) + p_k_dash(5, 5);
+Eigen::MatrixXd LinearModel::getCovarianceOfPrediction(double elapsed_time) {
+
+  double measurement_delta =
+      ros::Time::now().toSec() - last_update_time_ + elapsed_time;
+  phi(0, 4) = measurement_delta;
+  phi(1, 5) = measurement_delta;
+  phi(2, 6) = measurement_delta;
+  phi(3, 7) = measurement_delta;
+  Eigen::MatrixXd temp_p_k = p_k_dash;
+  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
+  temp_p_k = ((phi * temp_p_k * phi.transpose()) + q_dash).eval();
+  Eigen::MatrixXd cov_mat = Eigen::MatrixXd::Identity(6, 6);
+  cov_mat.block(0, 0, 3, 3) = temp_p_k.block(0, 0, 3, 3);
+  cov_mat.block(3, 3, 3, 3) = temp_p_k.block(4, 4, 3, 3);
+
+  return cov_mat;
 }

@@ -1,5 +1,15 @@
 linear_model:
-  r: 0.001
-  q: 0.01 # q upto 2n
+# observation noise
+  r_xy: 0.1
+  r_z: 0.1
+  r_heading: 0.05
+# process noise
+  q_xy: 0.2
+  q_z: 0.01
+  q_heading: 0.1
+  q_v_xy: 0.5
+  q_v_z: 0.01
+  q_heading_rate: 0.2
+
   diagnostics: true # true for on, false for off
   online_tune: false # true for tuning, false for not

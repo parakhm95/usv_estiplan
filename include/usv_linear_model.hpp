@@ -33,5 +33,5 @@ class LinearModel {
   void initialiseModel(ros::NodeHandle &nh);
   double getYaw(const geometry_msgs::PoseStamped &msg);
   void getPrediction(geometry_msgs::Pose &msg, double time_elapsed);
-  double getCovarianceOfVxy();
+  Eigen::MatrixXd getCovarianceOfPrediction(double elapsed_time);
 };

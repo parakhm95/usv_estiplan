@@ -14,6 +14,7 @@
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/PoseArray.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "nav_msgs/Odometry.h"
 using namespace std;
@@ -26,6 +27,7 @@ ros::Publisher wave_observer_model1;
 ros::Publisher wave_observer_model2;
 ros::Publisher pose_pred_pub_model1;
 ros::Publisher pose_pred_pub_model2;
+ros::Publisher pub_last_pose;
 double last_update_time;
 bool tag_received = false;
 
@@ -56,6 +58,8 @@ int main(int argc, char **argv) {
       "model1_pose_predictions_out", 1000);
   pose_pred_pub_model2 = estiplan.advertise<geometry_msgs::PoseArray>(
       "model2_pose_predictions_out", 1000);
+  pub_last_pose = estiplan.advertise<geometry_msgs::PoseWithCovarianceStamped>(
+      "last_predicted_pose", 1000);
   // detected_output =
   //     estiplan.advertise<usv_estiplan::Fftarray>("idenitification", 1000);
   // ros::ServiceServer prediction_srv = estiplan.advertiseService(
@@ -67,15 +71,34 @@ int main(int argc, char **argv) {
     if (ros::isShuttingDown()) {
     }
     geometry_msgs::PoseArray pose_pred_msg;
-    for (double i = 0.0; i < 1.0; i += 0.01) {
+    geometry_msgs::PoseWithCovarianceStamped msg_last_pose_with_covariance;
+    // TODO: Remove the hardcoded numbers for prediction timestep and horizons
+    for (double i = 0.0; i < 4.0; i += 0.1) {
       model1.getPrediction(temp_msg, i);
+      temp_msg.position.z += 6.0;
       pose_pred_msg.poses.push_back(temp_msg);
+      // INVESTIGATE: WHY DOES EQUAL SIGN NOT WORK HERE
+      if (i >= 3.9) {
+        msg_last_pose_with_covariance.pose.pose = temp_msg;
+      }
     }
+    Eigen::MatrixXd last_covariance = model1.getCovarianceOfPrediction(4.0);
+    for (int i = 0; i < 36; i++) {
+      // Because ros covariance is row major, we transpose the column-major of
+      // Eigen to access in the correct format
+      msg_last_pose_with_covariance.pose.covariance[i] =
+          last_covariance.transpose()(i);
+    }
+    msg_last_pose_with_covariance.header.stamp =
+        ros::Time::now() + ros::Duration(3.9);
+    // TODO remove hardcoded frame_id
+    msg_last_pose_with_covariance.header.frame_id = "uav1/gps_origin";
     pose_pred_msg.header.stamp = ros::Time::now();
     pose_pred_msg.header.frame_id = "uav1/gps_origin";
-    if (tag_received && model1.getCovarianceOfVxy() < 0.05) {
+    if (tag_received) {
       pose_pred_pub_model1.publish(pose_pred_msg);
     }
+    pub_last_pose.publish(msg_last_pose_with_covariance);
     ros::spinOnce();
     loop_rate.sleep();
   }

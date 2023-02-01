@@ -39,6 +39,7 @@
         <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pose.yaml" />
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />
+        <!--remap from="~model1_pose_predictions_out" to="linear_mpc/target_trajectory_in" -->
     </node>
     
     <!-- Wave generator node -->
