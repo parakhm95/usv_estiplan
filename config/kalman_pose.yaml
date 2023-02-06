@@ -10,6 +10,8 @@ linear_model:
   q_v_xy: 0.5
   q_v_z: 0.01
   q_heading_rate: 0.2
+  q_heading_rate_with_velocity: -0.3
+  water_drag: 1.0
 
   diagnostics: true # true for on, false for off
   online_tune: false # true for tuning, false for not

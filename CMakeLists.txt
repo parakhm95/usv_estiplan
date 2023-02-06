@@ -142,7 +142,7 @@ include_directories(
 add_executable(fft_node src/fft_estimate.cpp)
 add_executable(wave_prediction_node src/wave_prediction.cpp)
 add_executable(wave_generation_node src/wave_generator.cpp)
-add_executable(usv_state_prediction_node src/usv_state_prediction.cpp src/usv_linear_model.cpp)
+add_executable(usv_state_prediction_node src/usv_state_prediction.cpp src/usv_linear_model.cpp src/usv_linear_input_model.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
