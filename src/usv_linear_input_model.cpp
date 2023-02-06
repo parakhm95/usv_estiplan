@@ -76,6 +76,7 @@ void LinearInputModel::initialiseModel(ros::NodeHandle &nh) {
 
 void LinearInputModel::updateModel(const geometry_msgs::PoseStamped &msg) {
   double measurement_delta = ros::Time::now().toSec() - last_update_time_;
+  measurement_delta = 0.01;
   last_update_time_ = ros::Time::now().toSec();
   w_k(0) = msg.pose.position.x;
   w_k(1) = msg.pose.position.y;
@@ -178,4 +179,53 @@ LinearInputModel::calculateInput(const Eigen::VectorXd &current_state) {
   calculated_input(4) = drag_in_world(0);
   calculated_input(5) = drag_in_world(1);
   return calculated_input;
+}
+void LinearInputModel::iterateModel() {
+
+  double measurement_delta = 0.01;
+
+  x_predicted = x_t;
+  phi(0, 4) = measurement_delta;
+  phi(1, 5) = measurement_delta;
+  phi(2, 6) = measurement_delta;
+  phi(3, 7) = measurement_delta;
+  x_predicted =
+      phi * x_predicted + measurement_delta * calculateInput(x_predicted);
+  x_t = x_predicted;
+}
+
+Eigen::VectorXd
+LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state) {
+
+  double measurement_delta = 0.1;
+
+  x_predicted = input_state;
+  phi(0, 4) = measurement_delta;
+  phi(1, 5) = measurement_delta;
+  phi(2, 6) = measurement_delta;
+  phi(3, 7) = measurement_delta;
+  x_predicted =
+      phi * x_predicted + measurement_delta * calculateInput(x_predicted);
+  return x_predicted;
+}
+
+void LinearInputModel::returnPredictions(
+    double time_elapsed, geometry_msgs::PoseArray &msg_pose_array) {
+  geometry_msgs::Pose temp_pose_msg;
+  x_predicted = x_t;
+  for (double i = 0.00; i < time_elapsed; i += 0.1) {
+    x_predicted = returnIteratedState(x_predicted);
+
+    temp_pose_msg.position.x = x_predicted(0);
+    temp_pose_msg.position.y = x_predicted(1);
+    temp_pose_msg.position.z = x_predicted(2) + 6.0;
+    tf2::Quaternion myQuaternion;
+    myQuaternion.setRPY(0.0, 0.0, x_predicted(3));
+    myQuaternion.normalize();
+    temp_pose_msg.orientation.x = myQuaternion.getX();
+    temp_pose_msg.orientation.y = myQuaternion.getY();
+    temp_pose_msg.orientation.z = myQuaternion.getZ();
+    temp_pose_msg.orientation.w = myQuaternion.getW();
+    msg_pose_array.poses.push_back(temp_pose_msg);
+  }
 }

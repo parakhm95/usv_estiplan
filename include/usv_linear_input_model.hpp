@@ -38,4 +38,8 @@ public:
   void getPrediction(geometry_msgs::Pose &msg, double time_elapsed);
   Eigen::MatrixXd getCovarianceOfPrediction(double elapsed_time);
   Eigen::VectorXd calculateInput(const Eigen::VectorXd &current_state);
+  void iterateModel();
+  Eigen::VectorXd returnIteratedState(const Eigen::VectorXd &input_state);
+  void returnPredictions(double time_elapsed,
+                         geometry_msgs::PoseArray &msg_pose_array);
 };

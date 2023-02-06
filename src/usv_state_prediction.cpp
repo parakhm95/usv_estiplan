@@ -77,24 +77,24 @@ int main(int argc, char **argv) {
   while (ros::ok()) {
     if (ros::isShuttingDown()) {
     }
-    // model2.iterateModel();
+    model2.iterateModel();
     geometry_msgs::PoseArray pose_pred_msg;
     geometry_msgs::PoseArray model2_pose_pred_msg;
     geometry_msgs::PoseWithCovarianceStamped msg_last_pose_with_covariance;
     // TODO: Remove the hardcoded numbers for prediction timestep and horizons
     for (double i = 0.0; i < 4.0; i += 0.1) {
       model1.getPrediction(temp_msg, i);
-      model2.getPrediction(model2_temp_msg, i);
+      //  model2.getPrediction(model2_temp_msg, i);
       temp_msg.position.z += 6.0;
-      model2_temp_msg.position.z += 6.0;
+      // model2_temp_msg.position.z += 6.0;
       pose_pred_msg.poses.push_back(temp_msg);
-      model2_pose_pred_msg.poses.push_back(model2_temp_msg);
-      //  INVESTIGATE: WHY DOES EQUAL SIGN NOT WORK HERE
+      // model2_pose_pred_msg.poses.push_back(model2_temp_msg);
+      //   INVESTIGATE: WHY DOES EQUAL SIGN NOT WORK HERE
       if (i >= 3.9) {
         msg_last_pose_with_covariance.pose.pose = temp_msg;
       }
     }
-    // model2.returnPredictions(4.0, model2_pose_pred_msg);
+    model2.returnPredictions(4.0, model2_pose_pred_msg);
     Eigen::MatrixXd last_covariance = model1.getCovarianceOfPrediction(4.0);
     for (int i = 0; i < 36; i++) {
       // Because ros covariance is row major, we transpose the column-major of
