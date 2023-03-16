@@ -12,7 +12,9 @@ private:
   double last_update_time_;
   double OUTPUT_COMPONENTS_ = 4;
   double STATE_COMPONENTS_ = 8;
-  double drag_multiplier = 2.0;
+  double drag_multiplier_ = 2.0;
+  bool was_wrap_executed_ = false;
+    bool first_start = true;
 
   Eigen::MatrixXd phi;
   Eigen::MatrixXd q;
@@ -28,6 +30,7 @@ private:
   Eigen::MatrixXd w_k_hat;
   Eigen::MatrixXd input_mat;
   geometry_msgs::Pose msg_prediction_;
+
   /* data */
 public:
   LinearInputModel(/* args */);
@@ -42,4 +45,6 @@ public:
   Eigen::VectorXd returnIteratedState(const Eigen::VectorXd &input_state);
   void returnPredictions(double time_elapsed,
                          geometry_msgs::PoseArray &msg_pose_array);
+  double wrapHeading(double heading, bool &was_wrap_executed);
+  double solveHeading(const double &reported_yaw, const double &current_yaw);
 };

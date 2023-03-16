@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
     for (double i = 0.0; i < 4.0; i += 0.1) {
       model1.getPrediction(temp_msg, i);
       //  model2.getPrediction(model2_temp_msg, i);
-      temp_msg.position.z += 6.0;
+      // temp_msg.position.z += 6.0;
       // model2_temp_msg.position.z += 6.0;
       pose_pred_msg.poses.push_back(temp_msg);
       // model2_pose_pred_msg.poses.push_back(model2_temp_msg);

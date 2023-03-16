@@ -67,7 +67,13 @@ void LinearInputModel::initialiseModel(ros::NodeHandle &nh) {
   if (!nh.getParam("linear_model/q_heading_rate", q(7, 7))) {
     ROS_WARN("[LinearModel] : Couldn't load q_heading_rate");
   }
-  if (!nh.getParam("linear_model/water_drag", drag_multiplier)) {
+  if (!nh.getParam("linear_model/q_heading_rate_with_velocity", q(4, 7))) {
+    q(5, 7) = q(4, 7);
+    q(7, 4) = q(4, 7);
+    q(7, 5) = q(4, 7);
+    ROS_WARN("[LinearModel] : Couldn't load q_heading_rate");
+  }
+  if (!nh.getParam("linear_model/water_drag", drag_multiplier_)) {
     ROS_WARN("[LinearModel] : Couldn't load water_drag");
   }
 
@@ -75,13 +81,23 @@ void LinearInputModel::initialiseModel(ros::NodeHandle &nh) {
 }
 
 void LinearInputModel::updateModel(const geometry_msgs::PoseStamped &msg) {
+    if(first_start){
+        x_t(0) = msg.pose.position.x;
+        x_t(1) = msg.pose.position.y;
+        x_t(2) = msg.pose.position.z;
+        x_t(3) = getYaw(msg);
+        first_start = false;
+        return;
+    }
   double measurement_delta = ros::Time::now().toSec() - last_update_time_;
   measurement_delta = 0.01;
   last_update_time_ = ros::Time::now().toSec();
   w_k(0) = msg.pose.position.x;
   w_k(1) = msg.pose.position.y;
   w_k(2) = msg.pose.position.z;
-  w_k(3) = getYaw(msg);
+  double calculated_yaw = getYaw(msg);
+  w_k(3) = solveHeading(calculated_yaw, x_t(3));
+  std::cout << " yaw : " << w_k(3) << "\n";
   phi(0, 4) = measurement_delta;
   phi(1, 5) = measurement_delta;
   phi(2, 6) = measurement_delta;
@@ -90,7 +106,7 @@ void LinearInputModel::updateModel(const geometry_msgs::PoseStamped &msg) {
   p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
   l_k = p_k_dash * c_t.transpose() *
         (c_t * p_k_dash * c_t.transpose() + r).inverse();
-  x_predicted = phi * x_t + measurement_delta * calculateInput(x_predicted);
+  x_predicted = phi * x_t + measurement_delta * calculateInput(x_t);
   w_k_hat = c_t * x_predicted;
   x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
   w_k_hat = c_t * x_predicted;
@@ -166,15 +182,10 @@ LinearInputModel::calculateInput(const Eigen::VectorXd &current_state) {
   w_to_b(1, 1) = cos(current_state(3));
   Eigen::MatrixXd b_to_w = w_to_b.inverse();
   Eigen::VectorXd v_in_body = w_to_b * current_state.block(4, 0, 2, 1);
-  std::cout << " v in body " << v_in_body(0) << " " << v_in_body(1);
   Eigen::VectorXd drag_in_body;
-  drag_in_body = -drag_multiplier * v_in_body;
+  drag_in_body = -drag_multiplier_ * v_in_body;
   drag_in_body(0) = 0.0;
   Eigen::VectorXd drag_in_world = b_to_w * drag_in_body;
-  std::cout << " vx: " << current_state(4);
-  std::cout << " vy: " << current_state(5);
-  std::cout << " drag x: " << drag_in_world(0);
-  std::cout << " drag y: " << drag_in_world(1) << "\n";
   Eigen::VectorXd calculated_input = Eigen::VectorXd::Zero(STATE_COMPONENTS_);
   calculated_input(4) = drag_in_world(0);
   calculated_input(5) = drag_in_world(1);
@@ -215,10 +226,9 @@ void LinearInputModel::returnPredictions(
   x_predicted = x_t;
   for (double i = 0.00; i < time_elapsed; i += 0.1) {
     x_predicted = returnIteratedState(x_predicted);
-
     temp_pose_msg.position.x = x_predicted(0);
     temp_pose_msg.position.y = x_predicted(1);
-    temp_pose_msg.position.z = x_predicted(2) + 6.0;
+    temp_pose_msg.position.z = x_predicted(2);
     tf2::Quaternion myQuaternion;
     myQuaternion.setRPY(0.0, 0.0, x_predicted(3));
     myQuaternion.normalize();
@@ -228,4 +238,47 @@ void LinearInputModel::returnPredictions(
     temp_pose_msg.orientation.w = myQuaternion.getW();
     msg_pose_array.poses.push_back(temp_pose_msg);
   }
+}
+
+double LinearInputModel::wrapHeading(double heading, bool &was_wrap_executed) {
+  if (heading < M_PI && heading > -M_PI) {
+    return heading;
+  }
+  if (heading > M_PI) {
+    heading -= M_PI;
+    was_wrap_executed = true;
+  } else if (heading < -M_PI) {
+    heading += M_PI;
+    was_wrap_executed = true;
+  }
+  if (heading < M_PI && heading > -M_PI) {
+    return heading;
+  } else {
+    return wrapHeading(heading, was_wrap_executed);
+  }
+}
+
+double LinearInputModel::solveHeading(const double &observed_yaw,
+                                      const double &current_yaw) {
+  // if they are of the same sign, nothing to do here.
+  if (observed_yaw * current_yaw > 0) {
+    return observed_yaw;
+  }
+  // find the delta between them in absolute value
+  double delta_yaw = abs(observed_yaw - current_yaw);
+  // if it is smaller than PI, we are near zeros and we don't have to do
+  // anything
+  if (delta_yaw < M_PI) {
+    return observed_yaw;
+  }
+  // if the delta is greater than PI, find the lesser value by subtracting from
+  // 2*PI
+  delta_yaw = 2 * M_PI - delta_yaw;
+  // if current_yaw is lesser than zero and we are transitioning to positive,
+  // subtract this from it.
+  if (current_yaw < 0) {
+    return current_yaw - delta_yaw;
+  }
+  // if current_yaw is greater than zero, add to it.
+  return current_yaw + delta_yaw;
 }

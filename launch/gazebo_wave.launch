@@ -13,11 +13,11 @@
     <param name="~t_future" value="$(arg T_FUTURE)" />
 
     <!-- FFT Node -->
-    <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen">
+    <!-- <node name="fft_estimate" pkg="usv_estiplan" type="fft_node" output="screen">
         <rosparam command="load" file="$(find usv_estiplan)/config/fft_config.yaml" />
         <remap from="~odom_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_out" to="~$(arg FFT_TOPIC)" />
-    </node>
+    </node> -->
 
     <!-- Roll wave prediction node -->
     <!-- <node name="wave_prediction_roll" pkg="usv_estiplan" type="wave_prediction_node" output="screen" args="roll">
