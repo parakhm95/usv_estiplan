@@ -42,9 +42,9 @@ public:
   Eigen::MatrixXd getCovarianceOfPrediction(double elapsed_time);
   Eigen::VectorXd calculateInput(const Eigen::VectorXd &current_state);
   void iterateModel();
-  Eigen::VectorXd returnIteratedState(const Eigen::VectorXd &input_state);
+  Eigen::VectorXd returnIteratedState(const Eigen::VectorXd &input_state,double timestep);
   void returnPredictions(double time_elapsed,
-                         geometry_msgs::PoseArray &msg_pose_array);
+                         geometry_msgs::PoseArray &msg_pose_array, double timestep);
   double wrapHeading(double heading, bool &was_wrap_executed);
   double solveHeading(const double &reported_yaw, const double &current_yaw);
 };

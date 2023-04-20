@@ -36,6 +36,7 @@
 
     <!-- usv_state_prediction node -->
     <node name="usv_state_prediction" pkg="usv_estiplan" type="usv_state_prediction_node" output="screen">
+        <param name="uav_name" value="$(arg UAV_NAME)" />
         <rosparam command="load" file="$(find usv_estiplan)/config/kalman_pose.yaml" />
         <remap from="~odometry_in" to="$(arg ODOM_TOPIC)" />
         <remap from="~fft_in" to="fft_estimate/$(arg FFT_TOPIC)" />

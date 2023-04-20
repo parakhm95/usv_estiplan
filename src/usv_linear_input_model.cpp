@@ -206,9 +206,9 @@ void LinearInputModel::iterateModel() {
 }
 
 Eigen::VectorXd
-LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state) {
+LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state,double timestep) {
 
-  double measurement_delta = 0.1;
+  double measurement_delta = timestep;
 
   x_predicted = input_state;
   phi(0, 4) = measurement_delta;
@@ -221,11 +221,11 @@ LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state) {
 }
 
 void LinearInputModel::returnPredictions(
-    double time_elapsed, geometry_msgs::PoseArray &msg_pose_array) {
+    double time_elapsed, geometry_msgs::PoseArray &msg_pose_array, double timestep) {
   geometry_msgs::Pose temp_pose_msg;
   x_predicted = x_t;
-  for (double i = 0.00; i < time_elapsed; i += 0.1) {
-    x_predicted = returnIteratedState(x_predicted);
+  for (double i = 0.00; i < time_elapsed; i += timestep) {
+    x_predicted = returnIteratedState(x_predicted,timestep);
     temp_pose_msg.position.x = x_predicted(0);
     temp_pose_msg.position.y = x_predicted(1);
     temp_pose_msg.position.z = x_predicted(2);
@@ -282,3 +282,4 @@ double LinearInputModel::solveHeading(const double &observed_yaw,
   // if current_yaw is greater than zero, add to it.
   return current_yaw + delta_yaw;
 }
+
