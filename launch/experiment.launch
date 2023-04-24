@@ -1,11 +1,11 @@
 <launch>
 <arg name="UAV_NAME" default="$(env UAV_NAME)" />
-<arg name="SAMPLING_FREQ" value="30" />
-<arg name="CAMERA_NAME" value="rgbd_down/color" />
-<arg name="ODOM_TOPIC" value="base_detections" />
-<arg name="TAG_TOPIC" value="$(arg CAMERA_NAME)/tag_detections" />
-<arg name="FFT_TOPIC" value="fft_output" />
-<arg name="T_FUTURE" value="1.0" />
+<arg name="SAMPLING_FREQ" default="30" />
+<arg name="CAMERA_NAME" default="basler" />
+<arg name="ODOM_TOPIC" default="base_detections" />
+<arg name="TAG_TOPIC" default="tag_detections" />
+<arg name="FFT_TOPIC" default="fft_output" />
+<arg name="T_FUTURE" default="1.0" />
 <group ns="$(arg UAV_NAME)">
 
     <!-- Params that are common to all the nodes -->
