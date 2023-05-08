@@ -35,7 +35,7 @@
     </node>
     
     <!-- Wave generator node -->
-    <node name="gazebo_wave_generator" pkg="usv_estiplan" type="gazebo_wave_generator.py" output="screen"/>
+    <!-- node name="gazebo_wave_generator" pkg="usv_estiplan" type="gazebo_wave_generator.py" output="screen"/-->
 
     <!-- April tag brige -->
     <node name="april_tag_bridge" pkg="usv_estiplan" type="april_tag_bridge.py" respawn="true" output="screen">
