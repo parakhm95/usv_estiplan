@@ -4,12 +4,12 @@ linear_model:
   r_z: 0.1
   r_heading: 0.05
 # process noise
-  q_xy: 0.2
+  q_xy: 10.2
   q_z: 0.01
   q_heading: 0.1
-  q_v_xy: 0.5
+  q_v_xy: 10.5
   q_v_z: 0.01
-  q_heading_rate: 0.2
+  q_heading_rate: 10.2
   q_heading_rate_with_velocity: -0.3
   water_drag: 1.0
 
