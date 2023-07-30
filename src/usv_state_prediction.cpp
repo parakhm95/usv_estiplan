@@ -14,6 +14,7 @@
 
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/PoseArray.h"
+#include "usv_estiplan/OdometryArray.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/Vector3.h"
@@ -69,7 +70,7 @@ int main(int argc, char **argv) {
       estiplan.advertise<geometry_msgs::Pose>("observer_model2", 1000);
   pose_pred_pub_model1 = estiplan.advertise<geometry_msgs::PoseArray>(
       "model1_pose_predictions_out", 1000);
-  pose_pred_pub_model2 = estiplan.advertise<geometry_msgs::PoseArray>(
+  pose_pred_pub_model2 = estiplan.advertise<usv_estiplan::OdometryArray>(
       "model2_pose_predictions_out", 1000);
   pub_last_pose = estiplan.advertise<geometry_msgs::PoseWithCovarianceStamped>(
       "last_predicted_pose", 1000);
@@ -88,7 +89,7 @@ int main(int argc, char **argv) {
     }
     model2.iterateModel();
     geometry_msgs::PoseArray pose_pred_msg;
-    geometry_msgs::PoseArray model2_pose_pred_msg;
+    usv_estiplan::OdometryArray model2_pose_pred_msg;
     geometry_msgs::PoseWithCovarianceStamped msg_last_pose_with_covariance;
     if (!horizon_loaded) {
       if (!estiplan.getParam("/lmpc_pred_horizon", _lmpc_horizon_)) {
@@ -123,7 +124,7 @@ int main(int argc, char **argv) {
       model2.returnPredictions(total_horizon_time, model2_pose_pred_msg,
                                _lmpc_prediction_timestep_);
       msg_last_pose_with_covariance.pose.pose =
-          model2_pose_pred_msg.poses[_lmpc_horizon_ - 1];
+          model2_pose_pred_msg.odom_array[_lmpc_horizon_ - 1].pose.pose;
       Eigen::MatrixXd last_covariance =
           model2.getCovarianceOfPrediction(total_horizon_time);
       for (int i = 0; i < 36; i++) {

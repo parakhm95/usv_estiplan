@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <usv_estiplan/OdometryArray.h>
 
 #include <Eigen/Dense>
 
@@ -44,7 +45,7 @@ public:
   void iterateModel();
   Eigen::VectorXd returnIteratedState(const Eigen::VectorXd &input_state,double timestep);
   void returnPredictions(double time_elapsed,
-                         geometry_msgs::PoseArray &msg_pose_array, double timestep);
+                         usv_estiplan::OdometryArray &msg_odom_array, double timestep);
   double wrapHeading(double heading, bool &was_wrap_executed);
   double solveHeading(const double &reported_yaw, const double &current_yaw);
 };

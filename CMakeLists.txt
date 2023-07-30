@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
+  nav_msgs
   message_generation
 )
 
@@ -57,6 +59,7 @@ add_message_files(
   Fftresult.msg
   Wavefuture.msg
   Float64Stamped.msg
+  OdometryArray.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -75,6 +78,8 @@ add_service_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
+  geometry_msgs
+  nav_msgs
   std_msgs
   usv_estiplan
 )
