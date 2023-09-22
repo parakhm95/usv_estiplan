@@ -1,3 +1,3 @@
 Header header
 string child_frame_id
-nav_msgs/Odometry[] odom_array
+usv_estiplan/OdometryNoCov[] odom_array

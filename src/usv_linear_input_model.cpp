@@ -222,24 +222,24 @@ LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state,double 
 
 void LinearInputModel::returnPredictions(
     double time_elapsed, usv_estiplan::OdometryArray &msg_odom_array, double timestep) {
-  nav_msgs::Odometry temp_odom_msg;
+    usv_estiplan::OdometryNoCov temp_odom_msg;
   x_predicted = x_t;
   for (double i = 0.00; i < time_elapsed; i += timestep) {
     x_predicted = returnIteratedState(x_predicted,timestep);
-    temp_odom_msg.pose.pose.position.x = x_predicted(0);
-    temp_odom_msg.pose.pose.position.y = x_predicted(1);
-    temp_odom_msg.pose.pose.position.z = x_predicted(2);
-    temp_odom_msg.twist.twist.linear.x = x_predicted(4);
-    temp_odom_msg.twist.twist.linear.y = x_predicted(5);
-    temp_odom_msg.twist.twist.linear.z = x_predicted(6);
-    temp_odom_msg.twist.twist.angular.z = x_predicted(7);
+    temp_odom_msg.pose.position.x = x_predicted(0);
+    temp_odom_msg.pose.position.y = x_predicted(1);
+    temp_odom_msg.pose.position.z = x_predicted(2);
+    temp_odom_msg.twist.linear.x = x_predicted(4);
+    temp_odom_msg.twist.linear.y = x_predicted(5);
+    temp_odom_msg.twist.linear.z = x_predicted(6);
+    temp_odom_msg.twist.angular.z = x_predicted(7);
     tf2::Quaternion myQuaternion;
     myQuaternion.setRPY(0.0, 0.0, x_predicted(3));
     myQuaternion.normalize();
-    temp_odom_msg.pose.pose.orientation.x = myQuaternion.getX();
-    temp_odom_msg.pose.pose.orientation.y = myQuaternion.getY();
-    temp_odom_msg.pose.pose.orientation.z = myQuaternion.getZ();
-    temp_odom_msg.pose.pose.orientation.w = myQuaternion.getW();
+    temp_odom_msg.pose.orientation.x = myQuaternion.getX();
+    temp_odom_msg.pose.orientation.y = myQuaternion.getY();
+    temp_odom_msg.pose.orientation.z = myQuaternion.getZ();
+    temp_odom_msg.pose.orientation.w = myQuaternion.getW();
     msg_odom_array.odom_array.push_back(temp_odom_msg);
   }
 }

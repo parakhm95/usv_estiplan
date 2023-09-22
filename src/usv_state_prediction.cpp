@@ -108,23 +108,15 @@ int main(int argc, char **argv) {
     }
     if (horizon_loaded and prediction_timestep_loaded) {
 
-      // for (double i = 0.0; i < 4.0; i += 0.1) {
-      // model1.getPrediction(temp_msg, i);
-      //  model2.getPrediction(model2_temp_msg, i);
-      // temp_msg.position.z += 6.0;
-      // model2_temp_msg.position.z += 6.0;
-      // pose_pred_msg.poses.push_back(temp_msg);
-      // model2_pose_pred_msg.poses.push_back(model2_temp_msg);
-      //   INVESTIGATE: WHY DOES EQUAL SIGN NOT WORK HERE
-      // if (i >= 3.9) {
-      //  msg_last_pose_with_covariance.pose.pose = temp_msg;
-      //}
-      //}
+      for (double i = 0.0; i < 4.0; i += 0.1) {
+      model1.getPrediction(temp_msg, i);
+      pose_pred_msg.poses.push_back(temp_msg);
+      }
       double total_horizon_time = _lmpc_prediction_timestep_ * _lmpc_horizon_;
       model2.returnPredictions(total_horizon_time, model2_pose_pred_msg,
                                _lmpc_prediction_timestep_);
       msg_last_pose_with_covariance.pose.pose =
-          model2_pose_pred_msg.odom_array[_lmpc_horizon_ - 1].pose.pose;
+          model2_pose_pred_msg.odom_array[_lmpc_horizon_ - 1].pose;
       Eigen::MatrixXd last_covariance =
           model2.getCovarianceOfPrediction(total_horizon_time);
       for (int i = 0; i < 36; i++) {
@@ -141,7 +133,7 @@ int main(int argc, char **argv) {
       model2_pose_pred_msg.header.stamp = ros::Time::now();
       model2_pose_pred_msg.header.frame_id = _uav_frame_;
       if (tag_received) {
-        // pose_pred_pub_model1.publish(pose_pred_msg);
+        pose_pred_pub_model1.publish(pose_pred_msg);
         pose_pred_pub_model2.publish(model2_pose_pred_msg);
       }
       pub_last_pose.publish(msg_last_pose_with_covariance);

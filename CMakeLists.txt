@@ -59,6 +59,7 @@ add_message_files(
   Fftresult.msg
   Wavefuture.msg
   Float64Stamped.msg
+  OdometryNoCov.msg
   OdometryArray.msg
 )
 
