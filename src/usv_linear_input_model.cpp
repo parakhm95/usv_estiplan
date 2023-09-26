@@ -102,8 +102,6 @@ void LinearInputModel::updateModel(const geometry_msgs::PoseStamped &msg) {
   phi(1, 5) = measurement_delta;
   phi(2, 6) = measurement_delta;
   phi(3, 7) = measurement_delta;
-  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
-  p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
   l_k = p_k_dash * c_t.transpose() *
         (c_t * p_k_dash * c_t.transpose() + r).inverse();
   x_predicted = phi * x_t + measurement_delta * calculateInput(x_t);
@@ -132,8 +130,7 @@ void LinearInputModel::getPrediction(geometry_msgs::Pose &msg,
     msg.orientation.w = myQuaternion.getW();
     return;
   }
-  double measurement_delta =
-      ros::Time::now().toSec() - last_update_time_ + time_elapsed;
+  double measurement_delta = 0.01 + time_elapsed;
 
   x_predicted = x_t;
   phi(0, 4) = measurement_delta;
@@ -158,13 +155,14 @@ LinearInputModel::getCovarianceOfPrediction(double elapsed_time) {
 
   double measurement_delta =
       ros::Time::now().toSec() - last_update_time_ + elapsed_time;
-  phi(0, 4) = measurement_delta;
-  phi(1, 5) = measurement_delta;
-  phi(2, 6) = measurement_delta;
-  phi(3, 7) = measurement_delta;
+    Eigen::MatrixXd phi_temp = phi;
+  phi_temp(0, 4) = measurement_delta;
+  phi_temp(1, 5) = measurement_delta;
+  phi_temp(2, 6) = measurement_delta;
+  phi_temp(3, 7) = measurement_delta;
   Eigen::MatrixXd temp_p_k = p_k_dash;
-  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
-  temp_p_k = ((phi * temp_p_k * phi.transpose()) + q_dash).eval();
+  q_dash = 0.5 * ((phi_temp * q * phi_temp.transpose()) + q) * measurement_delta;
+  temp_p_k = ((phi_temp * temp_p_k * phi_temp.transpose()) + q_dash).eval();
   Eigen::MatrixXd cov_mat = Eigen::MatrixXd::Identity(6, 6);
   cov_mat.block(0, 0, 3, 3) = temp_p_k.block(0, 0, 3, 3);
   cov_mat.block(3, 3, 3, 3) = temp_p_k.block(4, 4, 3, 3);
@@ -202,6 +200,8 @@ void LinearInputModel::iterateModel() {
   phi(3, 7) = measurement_delta;
   x_predicted =
       phi * x_predicted + measurement_delta * calculateInput(x_predicted);
+  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
+  p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
   x_t = x_predicted;
 }
 
@@ -211,12 +211,13 @@ LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state,double 
   double measurement_delta = timestep;
 
   x_predicted = input_state;
-  phi(0, 4) = measurement_delta;
-  phi(1, 5) = measurement_delta;
-  phi(2, 6) = measurement_delta;
-  phi(3, 7) = measurement_delta;
+  Eigen::MatrixXd phi_temp = phi;
+  phi_temp(0, 4) = measurement_delta;
+  phi_temp(1, 5) = measurement_delta;
+  phi_temp(2, 6) = measurement_delta;
+  phi_temp(3, 7) = measurement_delta;
   x_predicted =
-      phi * x_predicted + measurement_delta * calculateInput(x_predicted);
+      phi_temp * x_predicted + measurement_delta * calculateInput(x_predicted);
   return x_predicted;
 }
 
