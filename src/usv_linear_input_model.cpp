@@ -81,17 +81,18 @@ void LinearInputModel::initialiseModel(ros::NodeHandle &nh) {
 }
 
 void LinearInputModel::updateModel(const geometry_msgs::PoseStamped &msg) {
-    if(first_start){
-        x_t(0) = msg.pose.position.x;
-        x_t(1) = msg.pose.position.y;
-        x_t(2) = msg.pose.position.z;
-        x_t(3) = getYaw(msg);
-        first_start = false;
-        return;
-    }
-  double measurement_delta = ros::Time::now().toSec() - last_update_time_;
-  measurement_delta = 0.01;
-  last_update_time_ = ros::Time::now().toSec();
+  if (first_start) {
+    x_t(0) = msg.pose.position.x;
+    x_t(1) = msg.pose.position.y;
+    x_t(2) = msg.pose.position.z;
+    x_t(3) = getYaw(msg);
+    first_start = false;
+    return;
+  }
+  double measurement_delta = msg.header.stamp.toSec() - last_update_time_;
+  last_update_time_ = msg.header.stamp.toSec();
+  std::cout << "time_delta : " << last_iteration_time_ - last_update_time_
+            << "\n";
   w_k(0) = msg.pose.position.x;
   w_k(1) = msg.pose.position.y;
   w_k(2) = msg.pose.position.z;
@@ -106,7 +107,7 @@ void LinearInputModel::updateModel(const geometry_msgs::PoseStamped &msg) {
   p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
   l_k = p_k_dash * c_t.transpose() *
         (c_t * p_k_dash * c_t.transpose() + r).inverse();
-  x_predicted = phi * x_t + measurement_delta * calculateInput(x_t);
+  x_predicted = phi * x_t;
   w_k_hat = c_t * x_predicted;
   x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
   w_k_hat = c_t * x_predicted;
@@ -132,15 +133,20 @@ void LinearInputModel::getPrediction(geometry_msgs::Pose &msg,
     msg.orientation.w = myQuaternion.getW();
     return;
   }
-  double measurement_delta =
-      ros::Time::now().toSec() - last_update_time_ + time_elapsed;
+  double measurement_delta = 0.01;
+  int fake_time_steps = 4.0 / measurement_delta;
+  std::cout << "time_fake_steps : " << fake_time_steps << "\n";
+  int time_steps = time_elapsed / measurement_delta;
 
   x_predicted = x_t;
   phi(0, 4) = measurement_delta;
   phi(1, 5) = measurement_delta;
   phi(2, 6) = measurement_delta;
   phi(3, 7) = measurement_delta;
-  x_predicted = phi * x_predicted + 0.01 * calculateInput(x_predicted);
+  for (int i = 0; i < time_steps; i++) {
+    x_predicted =
+        phi * x_predicted + measurement_delta * calculateInput(x_predicted);
+  }
   msg.position.x = x_predicted(0);
   msg.position.y = x_predicted(1);
   msg.position.z = x_predicted(2);
@@ -203,10 +209,12 @@ void LinearInputModel::iterateModel() {
   x_predicted =
       phi * x_predicted + measurement_delta * calculateInput(x_predicted);
   x_t = x_predicted;
+  last_iteration_time_ = ros::Time::now().toSec();
 }
 
 Eigen::VectorXd
-LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state,double timestep) {
+LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state,
+                                      double timestep) {
 
   double measurement_delta = timestep;
 
@@ -221,11 +229,12 @@ LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state,double 
 }
 
 void LinearInputModel::returnPredictions(
-    double time_elapsed, usv_estiplan::OdometryArray &msg_odom_array, double timestep) {
-    usv_estiplan::OdometryNoCov temp_odom_msg;
+    double time_elapsed, usv_estiplan::OdometryArray &msg_odom_array,
+    double timestep) {
+  usv_estiplan::OdometryNoCov temp_odom_msg;
   x_predicted = x_t;
   for (double i = 0.00; i < time_elapsed; i += timestep) {
-    x_predicted = returnIteratedState(x_predicted,timestep);
+    x_predicted = returnIteratedState(x_predicted, timestep);
     temp_odom_msg.pose.position.x = x_predicted(0);
     temp_odom_msg.pose.position.y = x_predicted(1);
     temp_odom_msg.pose.position.z = x_predicted(2);
@@ -286,4 +295,3 @@ double LinearInputModel::solveHeading(const double &observed_yaw,
   // if current_yaw is greater than zero, add to it.
   return current_yaw + delta_yaw;
 }
-

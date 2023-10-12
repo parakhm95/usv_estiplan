@@ -11,6 +11,7 @@
 class LinearInputModel {
 private:
   double last_update_time_;
+  double last_iteration_time_;
   double OUTPUT_COMPONENTS_ = 4;
   double STATE_COMPONENTS_ = 8;
   double drag_multiplier_ = 2.0;
