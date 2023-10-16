@@ -48,9 +48,9 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
   tag_received = true;
   _uav_frame_ = msg.header.frame_id;
   model1.updateModel(msg);
-  model2.updateModel(msg);
+  model2.correctModel(msg);
   model1.getPrediction(temp_msg, 0.00);
-  model2.getPrediction(temp_msg, 0.00);
+  model2.getCorrectedState(temp_msg);
   wave_observer_model1.publish(temp_msg);
   wave_observer_model2.publish(temp_msg);
 }

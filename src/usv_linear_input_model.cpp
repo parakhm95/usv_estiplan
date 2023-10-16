@@ -7,8 +7,9 @@ LinearInputModel::LinearInputModel(/* args */) {
   p_k_dash = Eigen::MatrixXd::Identity(STATE_COMPONENTS_, STATE_COMPONENTS_);
   l_k = Eigen::MatrixXd::Zero(STATE_COMPONENTS_, OUTPUT_COMPONENTS_);
   c_t = Eigen::MatrixXd::Zero(OUTPUT_COMPONENTS_, STATE_COMPONENTS_);
-  x_t = Eigen::MatrixXd::Zero(STATE_COMPONENTS_, 1);
-  x_predicted = x_t;
+  x_corrected = Eigen::MatrixXd::Zero(
+      STATE_COMPONENTS_, 1); // Stores the last corrected state of the system
+  x_predicted = x_corrected;
   w_k = Eigen::MatrixXd::Zero(OUTPUT_COMPONENTS_, 1);
   w_k_hat = w_k;
   p_k = Eigen::MatrixXd::Zero(STATE_COMPONENTS_, STATE_COMPONENTS_);
@@ -77,81 +78,69 @@ void LinearInputModel::initialiseModel(ros::NodeHandle &nh) {
     ROS_WARN("[LinearModel] : Couldn't load water_drag");
   }
 
-  last_update_time_ = ros::Time::now().toSec();
+  last_correction_time_ = ros::Time::now().toSec();
 }
 
-void LinearInputModel::updateModel(const geometry_msgs::PoseStamped &msg) {
+void LinearInputModel::correctModel(const geometry_msgs::PoseStamped &msg) {
   if (first_start) {
-    x_t(0) = msg.pose.position.x;
-    x_t(1) = msg.pose.position.y;
-    x_t(2) = msg.pose.position.z;
-    x_t(3) = getYaw(msg);
+    x_corrected(0) = msg.pose.position.x;
+    x_corrected(1) = msg.pose.position.y;
+    x_corrected(2) = msg.pose.position.z;
+    x_corrected(3) = getYaw(msg);
     first_start = false;
     return;
   }
-  double measurement_delta = msg.header.stamp.toSec() - last_update_time_;
-  last_update_time_ = msg.header.stamp.toSec();
-  std::cout << "time_delta : " << last_iteration_time_ - last_update_time_
-            << "\n";
+
+  double measurement_delta = msg.header.stamp.toSec() - last_correction_time_;
+  last_correction_time_ = msg.header.stamp.toSec();
+  int forward_steps = measurement_delta / input_time_delta_;
+  std::cout << "measurement_delta is " << measurement_delta << " running "
+            << forward_steps << " times\n";
+  Eigen::VectorXd x_new = x_corrected;
+  phi(0, 4) = input_time_delta_;
+  phi(1, 5) = input_time_delta_;
+  phi(2, 6) = input_time_delta_;
+  phi(3, 7) = input_time_delta_;
+  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * input_time_delta_;
+  for (int i = 0; i < forward_steps; i++) {
+    x_new = phi * x_new + input_time_delta_ * calculateInput(x_new);
+    p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
+  }
   w_k(0) = msg.pose.position.x;
   w_k(1) = msg.pose.position.y;
   w_k(2) = msg.pose.position.z;
   double calculated_yaw = getYaw(msg);
-  w_k(3) = solveHeading(calculated_yaw, x_t(3));
+  w_k(3) = solveHeading(calculated_yaw, x_corrected(3));
   std::cout << " yaw : " << w_k(3) << "\n";
-  phi(0, 4) = measurement_delta;
-  phi(1, 5) = measurement_delta;
-  phi(2, 6) = measurement_delta;
-  phi(3, 7) = measurement_delta;
-  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
-  p_k_dash = ((phi * p_k_dash * phi.transpose()) + q_dash).eval();
   l_k = p_k_dash * c_t.transpose() *
         (c_t * p_k_dash * c_t.transpose() + r).inverse();
-  x_predicted = phi * x_t;
-  w_k_hat = c_t * x_predicted;
-  x_predicted = (x_predicted + (l_k * (w_k - w_k_hat))).eval();
-  w_k_hat = c_t * x_predicted;
+  w_k_hat = c_t * x_new;
+  x_new = (x_new + (l_k * (w_k - w_k_hat))).eval();
   p_k = (Eigen::MatrixXd::Identity(STATE_COMPONENTS_, STATE_COMPONENTS_) -
          (l_k * c_t)) *
         p_k_dash;
-  x_t = x_predicted;
+  x_corrected = x_new;       // Store the new correction
+  x_predicted = x_new; // Reset the new predicted state to msg timestamp
   p_k_dash = p_k;
+
+  // Bring x_predicted to current time
+  measurement_delta = ros::Time::now().toSec() - msg.header.stamp.toSec();
+  forward_steps = measurement_delta / input_time_delta_;
+  std::cout << "Behind current time by " << measurement_delta << " running "
+            << forward_steps << " times\n";
+  x_new = x_corrected;
+  for (int i = 0; i < forward_steps; i++) {
+    x_new = phi * x_new + input_time_delta_ * calculateInput(x_new);
+  }
+  x_predicted = x_new;
 }
 
-void LinearInputModel::getPrediction(geometry_msgs::Pose &msg,
-                                     double time_elapsed) {
-  if (time_elapsed == 0.0) {
-    msg.position.x = x_t(0);
-    msg.position.y = x_t(1);
-    msg.position.z = x_t(2);
-    tf2::Quaternion myQuaternion;
-    myQuaternion.setRPY(0.0, 0.0, x_t(3));
-    myQuaternion.normalize();
-    msg.orientation.x = myQuaternion.getX();
-    msg.orientation.y = myQuaternion.getY();
-    msg.orientation.z = myQuaternion.getZ();
-    msg.orientation.w = myQuaternion.getW();
-    return;
-  }
-  double measurement_delta = 0.01;
-  int fake_time_steps = 4.0 / measurement_delta;
-  std::cout << "time_fake_steps : " << fake_time_steps << "\n";
-  int time_steps = time_elapsed / measurement_delta;
-
-  x_predicted = x_t;
-  phi(0, 4) = measurement_delta;
-  phi(1, 5) = measurement_delta;
-  phi(2, 6) = measurement_delta;
-  phi(3, 7) = measurement_delta;
-  for (int i = 0; i < time_steps; i++) {
-    x_predicted =
-        phi * x_predicted + measurement_delta * calculateInput(x_predicted);
-  }
-  msg.position.x = x_predicted(0);
-  msg.position.y = x_predicted(1);
-  msg.position.z = x_predicted(2);
+void LinearInputModel::getCorrectedState(geometry_msgs::Pose &msg) {
+  msg.position.x = x_corrected(0);
+  msg.position.y = x_corrected(1);
+  msg.position.z = x_corrected(2);
   tf2::Quaternion myQuaternion;
-  myQuaternion.setRPY(0.0, 0.0, x_predicted(3));
+  myQuaternion.setRPY(0.0, 0.0, x_corrected(3));
   myQuaternion.normalize();
   msg.orientation.x = myQuaternion.getX();
   msg.orientation.y = myQuaternion.getY();
@@ -161,20 +150,19 @@ void LinearInputModel::getPrediction(geometry_msgs::Pose &msg,
 
 Eigen::MatrixXd
 LinearInputModel::getCovarianceOfPrediction(double elapsed_time) {
-
   double measurement_delta =
-      ros::Time::now().toSec() - last_update_time_ + elapsed_time;
-  phi(0, 4) = measurement_delta;
-  phi(1, 5) = measurement_delta;
-  phi(2, 6) = measurement_delta;
-  phi(3, 7) = measurement_delta;
+      ros::Time::now().toSec() - last_correction_time_ + elapsed_time;
+  Eigen::MatrixXd temp_phi = phi;
+  temp_phi(0, 4) = measurement_delta;
+  temp_phi(1, 5) = measurement_delta;
+  temp_phi(2, 6) = measurement_delta;
+  temp_phi(3, 7) = measurement_delta;
   Eigen::MatrixXd temp_p_k = p_k_dash;
-  q_dash = 0.5 * ((phi * q * phi.transpose()) + q) * measurement_delta;
-  temp_p_k = ((phi * temp_p_k * phi.transpose()) + q_dash).eval();
+  q_dash = 0.5 * ((temp_phi * q * temp_phi.transpose()) + q) * measurement_delta;
+  temp_p_k = ((temp_phi * temp_p_k * temp_phi.transpose()) + q_dash).eval();
   Eigen::MatrixXd cov_mat = Eigen::MatrixXd::Identity(6, 6);
   cov_mat.block(0, 0, 3, 3) = temp_p_k.block(0, 0, 3, 3);
   cov_mat.block(3, 3, 3, 3) = temp_p_k.block(4, 4, 3, 3);
-
   return cov_mat;
 }
 
@@ -197,53 +185,44 @@ LinearInputModel::calculateInput(const Eigen::VectorXd &current_state) {
   calculated_input(5) = drag_in_world(1);
   return calculated_input;
 }
+
 void LinearInputModel::iterateModel() {
-
-  double measurement_delta = 0.01;
-
-  x_predicted = x_t;
-  phi(0, 4) = measurement_delta;
-  phi(1, 5) = measurement_delta;
-  phi(2, 6) = measurement_delta;
-  phi(3, 7) = measurement_delta;
   x_predicted =
-      phi * x_predicted + measurement_delta * calculateInput(x_predicted);
-  x_t = x_predicted;
-  last_iteration_time_ = ros::Time::now().toSec();
+      phi * x_predicted + input_time_delta_ * calculateInput(x_predicted);
+  x_predicted = x_predicted;
 }
 
 Eigen::VectorXd
 LinearInputModel::returnIteratedState(const Eigen::VectorXd &input_state,
                                       double timestep) {
 
-  double measurement_delta = timestep;
-
-  x_predicted = input_state;
-  phi(0, 4) = measurement_delta;
-  phi(1, 5) = measurement_delta;
-  phi(2, 6) = measurement_delta;
-  phi(3, 7) = measurement_delta;
-  x_predicted =
-      phi * x_predicted + measurement_delta * calculateInput(x_predicted);
-  return x_predicted;
+  Eigen::MatrixXd temp_phi = phi;
+  Eigen::VectorXd temp_state = input_state;
+  temp_phi(0, 4) = timestep;
+  temp_phi(1, 5) = timestep;
+  temp_phi(2, 6) = timestep;
+  temp_phi(3, 7) = timestep;
+  temp_state =
+      temp_phi * temp_state + timestep * calculateInput(temp_state);
+  return temp_state;
 }
 
 void LinearInputModel::returnPredictions(
     double time_elapsed, usv_estiplan::OdometryArray &msg_odom_array,
     double timestep) {
   usv_estiplan::OdometryNoCov temp_odom_msg;
-  x_predicted = x_t;
+    Eigen::VectorXd x_temp = x_predicted;
   for (double i = 0.00; i < time_elapsed; i += timestep) {
-    x_predicted = returnIteratedState(x_predicted, timestep);
-    temp_odom_msg.pose.position.x = x_predicted(0);
-    temp_odom_msg.pose.position.y = x_predicted(1);
-    temp_odom_msg.pose.position.z = x_predicted(2);
-    temp_odom_msg.twist.linear.x = x_predicted(4);
-    temp_odom_msg.twist.linear.y = x_predicted(5);
-    temp_odom_msg.twist.linear.z = x_predicted(6);
-    temp_odom_msg.twist.angular.z = x_predicted(7);
+    x_temp = returnIteratedState(x_temp, timestep);
+    temp_odom_msg.pose.position.x = x_temp(0);
+    temp_odom_msg.pose.position.y = x_temp(1);
+    temp_odom_msg.pose.position.z = x_temp(2);
+    temp_odom_msg.twist.linear.x = x_temp(4);
+    temp_odom_msg.twist.linear.y = x_temp(5);
+    temp_odom_msg.twist.linear.z = x_temp(6);
+    temp_odom_msg.twist.angular.z = x_temp(7);
     tf2::Quaternion myQuaternion;
-    myQuaternion.setRPY(0.0, 0.0, x_predicted(3));
+    myQuaternion.setRPY(0.0, 0.0, x_temp(3));
     myQuaternion.normalize();
     temp_odom_msg.pose.orientation.x = myQuaternion.getX();
     temp_odom_msg.pose.orientation.y = myQuaternion.getY();
