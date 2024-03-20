@@ -6,6 +6,13 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <usv_estiplan/OdometryArray.h>
 
+/* for loading dynamic parameters while the nodelet is running */
+#include <dynamic_reconfigure/server.h>
+
+/* this header file is created during compilation from python script
+ * dynparam.cfg */
+#include <usv_estiplan/dynparamConfig.h>
+
 #include <Eigen/Dense>
 
 class LinearInputModel {
@@ -48,4 +55,11 @@ public:
                          usv_estiplan::OdometryArray &msg_odom_array, double timestep);
   double wrapHeading(double heading, bool &was_wrap_executed);
   double solveHeading(const double &reported_yaw, const double &current_yaw);
+  void callbackDynamicReconfigure([[maybe_unused]] usv_estiplan::dynparamConfig &config,
+                                  [[maybe_unused]] uint32_t level);
+  typedef dynamic_reconfigure::Server<usv_estiplan::dynparamConfig>
+      ReconfigureServer;
+  boost::recursive_mutex mutex_dynamic_reconfigure_;
+  boost::shared_ptr<ReconfigureServer> reconfigure_server_;
+  usv_estiplan::dynparamConfig last_drs_config_;
 };

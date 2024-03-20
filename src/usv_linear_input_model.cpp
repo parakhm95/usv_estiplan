@@ -77,6 +77,26 @@ void LinearInputModel::initialiseModel(ros::NodeHandle &nh) {
     ROS_WARN("[LinearModel] : Couldn't load water_drag");
   }
 
+  reconfigure_server_.reset(
+      new ReconfigureServer(mutex_dynamic_reconfigure_, nh));
+  ReconfigureServer::CallbackType f =
+      boost::bind(&LinearInputModel::callbackDynamicReconfigure, this, _1, _2);
+  reconfigure_server_->setCallback(f);
+
+  /* set the default value of dynamic reconfigure server to the value of
+   * parameter with the same name */
+  last_drs_config_.r_xy = r(0, 0);
+  last_drs_config_.r_z = r(2, 2);
+  last_drs_config_.r_heading = r(3, 3);
+  last_drs_config_.q_xy = q(0, 0);
+  last_drs_config_.q_z = q(2, 2);
+  last_drs_config_.q_heading = q(3, 3);
+  last_drs_config_.q_v_xy = q(4, 4);
+  last_drs_config_.q_v_z = q(6, 6);
+  last_drs_config_.q_heading_rate = q(7, 7);
+  last_drs_config_.q_heading_rate_with_velocity = q(4, 7);
+  last_drs_config_.water_drag = drag_multiplier_;
+
   last_update_time_ = ros::Time::now().toSec();
 }
 
@@ -287,3 +307,28 @@ double LinearInputModel::solveHeading(const double &observed_yaw,
   return current_yaw + delta_yaw;
 }
 
+void LinearInputModel::callbackDynamicReconfigure(
+    [[maybe_unused]] usv_estiplan::dynparamConfig &config,
+    [[maybe_unused]] uint32_t level) {
+
+// TODO: Mutex is missing from all of this
+  ROS_INFO("Dynamic reconfigure called");
+
+  r(0, 0) = config.r_xy;
+  r(1, 1) = config.r_xy;
+  r(2, 2) = config.r_z;
+  r(3, 3) = config.r_heading;
+  q(0, 0) = config.q_xy;
+  q(1, 1) = config.q_xy;
+  q(2, 2) = config.q_z;
+  q(3, 3) = config.q_heading;
+  q(4, 4) = config.q_v_xy;
+  q(5, 5) = config.q_v_xy;
+  q(6, 6) = config.q_v_z;
+  q(7, 7) = config.q_heading_rate;
+  q(4, 7) = config.q_heading_rate_with_velocity;
+  q(5, 7) = config.q_heading_rate_with_velocity;
+  q(7, 4) = config.q_heading_rate_with_velocity;
+  q(7, 5) = config.q_heading_rate_with_velocity;
+  drag_multiplier_ = config.water_drag;
+}
