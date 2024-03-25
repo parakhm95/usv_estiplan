@@ -52,6 +52,13 @@
         <remap from="~tag_detections_in" to="$(arg TAG_TOPIC)" />
         <remap from="~uav_state_in" to="odometry/uav_state" />
     </node>
+
+    <!-- Visualiser -->
+    <node name="visualiser" pkg="usv_estiplan" type="visualiser.py" respawn="false" output="screen">
+        <remap from="~model1_predictions_in" to="usv_state_prediction/model1_pose_predictions_out" />
+        <remap from="~model2_predictions_in" to="usv_state_prediction/model2_pose_predictions_out" />
+    </node>
+
 </group>
 <!-- <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" /> -->
 </launch>

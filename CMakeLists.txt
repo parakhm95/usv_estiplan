@@ -207,6 +207,7 @@ target_link_libraries(usv_state_prediction_node
 catkin_install_python(PROGRAMS
   scripts/gazebo_wave_generator.py
   scripts/april_tag_bridge.py
+  scripts/visualiser.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
