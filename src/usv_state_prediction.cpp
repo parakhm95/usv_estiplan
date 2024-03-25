@@ -110,11 +110,11 @@ int main(int argc, char **argv) {
     }
     if (horizon_loaded and prediction_timestep_loaded) {
 
-      for (double i = 0.0; i < 4.0; i += 0.1) {
+      double total_horizon_time = _lmpc_prediction_timestep_ * _lmpc_horizon_;
+      for (double i = 0.0; i < total_horizon_time; i += _lmpc_prediction_timestep_) {
         model1.getPrediction(temp_msg, i);
         pose_pred_msg.odom_array.push_back(temp_msg);
       }
-      double total_horizon_time = _lmpc_prediction_timestep_ * _lmpc_horizon_;
       model2.returnPredictions(total_horizon_time, model2_pose_pred_msg,
                                _lmpc_prediction_timestep_);
       msg_last_pose_with_covariance.pose.pose =
