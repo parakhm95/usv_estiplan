@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
       estiplan.advertise<geometry_msgs::Pose>("observer_model1", 1000);
   wave_observer_model2 =
       estiplan.advertise<geometry_msgs::Pose>("observer_model2", 1000);
-  pose_pred_pub_model1 = estiplan.advertise<geometry_msgs::PoseArray>(
+  pose_pred_pub_model1 = estiplan.advertise<usv_estiplan::OdometryArray>(
       "model1_pose_predictions_out", 1000);
   pose_pred_pub_model2 = estiplan.advertise<usv_estiplan::OdometryArray>(
       "model2_pose_predictions_out", 1000);
