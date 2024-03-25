@@ -38,6 +38,8 @@ bool prediction_timestep_loaded = false;
 int _lmpc_horizon_ = 0;
 double _lmpc_prediction_timestep_ = 0.0;
 string _uav_frame_ = "uav1/gps_origin";
+double last_publish_time = 0.0;
+double predictions_publish_time_interval = 0.04;
 
 // std::ofstream csv_debug;
 LinearModel model1;
@@ -134,7 +136,8 @@ int main(int argc, char **argv) {
       pose_pred_msg.header.frame_id = _uav_frame_;
       model2_pose_pred_msg.header.stamp = ros::Time::now();
       model2_pose_pred_msg.header.frame_id = _uav_frame_;
-      if (tag_received) {
+      if (tag_received and ros::Time::now().toSec() - last_publish_time >
+                               predictions_publish_time_interval) {
         pose_pred_pub_model1.publish(pose_pred_msg);
         pose_pred_pub_model2.publish(model2_pose_pred_msg);
       }
