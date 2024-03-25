@@ -97,18 +97,23 @@ void LinearModel::updateModel(const geometry_msgs::PoseStamped &msg) {
   p_k_dash = p_k;
 }
 
-void LinearModel::getPrediction(geometry_msgs::Pose &msg, double time_elapsed) {
+void LinearModel::getPrediction(usv_estiplan::OdometryNoCov &msg,
+                                double time_elapsed) {
   if (time_elapsed == 0.0) {
-    msg.position.x = x_t(0);
-    msg.position.y = x_t(1);
-    msg.position.z = x_t(2);
+    msg.pose.position.x = x_t(0);
+    msg.pose.position.y = x_t(1);
+    msg.pose.position.z = x_t(2);
+    msg.twist.linear.x = x_t(4);
+    msg.twist.linear.y = x_t(5);
+    msg.twist.linear.z = x_t(6);
+    msg.twist.angular.z = x_t(7);
     tf2::Quaternion myQuaternion;
     myQuaternion.setRPY(0.0, 0.0, x_t(3));
     myQuaternion.normalize();
-    msg.orientation.x = myQuaternion.getX();
-    msg.orientation.y = myQuaternion.getY();
-    msg.orientation.z = myQuaternion.getZ();
-    msg.orientation.w = myQuaternion.getW();
+    msg.pose.orientation.x = myQuaternion.getX();
+    msg.pose.orientation.y = myQuaternion.getY();
+    msg.pose.orientation.z = myQuaternion.getZ();
+    msg.pose.orientation.w = myQuaternion.getW();
     return;
   }
   double measurement_delta =
@@ -120,16 +125,20 @@ void LinearModel::getPrediction(geometry_msgs::Pose &msg, double time_elapsed) {
   phi(2, 6) = measurement_delta;
   phi(3, 7) = measurement_delta;
   x_predicted = phi * x_predicted;
-  msg.position.x = x_predicted(0);
-  msg.position.y = x_predicted(1);
-  msg.position.z = x_predicted(2);
+  msg.pose.position.x = x_predicted(0);
+  msg.pose.position.y = x_predicted(1);
+  msg.pose.position.z = x_predicted(2);
+  msg.twist.linear.x = x_t(4);
+  msg.twist.linear.y = x_t(5);
+  msg.twist.linear.z = x_t(6);
+  msg.twist.angular.z = x_t(7);
   tf2::Quaternion myQuaternion;
   myQuaternion.setRPY(0.0, 0.0, x_predicted(3));
   myQuaternion.normalize();
-  msg.orientation.x = myQuaternion.getX();
-  msg.orientation.y = myQuaternion.getY();
-  msg.orientation.z = myQuaternion.getZ();
-  msg.orientation.w = myQuaternion.getW();
+  msg.pose.orientation.x = myQuaternion.getX();
+  msg.pose.orientation.y = myQuaternion.getY();
+  msg.pose.orientation.z = myQuaternion.getZ();
+  msg.pose.orientation.w = myQuaternion.getW();
 }
 
 Eigen::MatrixXd LinearModel::getCovarianceOfPrediction(double elapsed_time) {

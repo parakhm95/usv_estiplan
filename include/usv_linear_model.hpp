@@ -3,6 +3,7 @@
 #include <ros/ros.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <usv_estiplan/OdometryNoCov.h>
 
 #include <Eigen/Dense>
 
@@ -32,6 +33,6 @@ public:
   void updateModel(const geometry_msgs::PoseStamped &msg);
   void initialiseModel(ros::NodeHandle &nh);
   double getYaw(const geometry_msgs::PoseStamped &msg);
-  void getPrediction(geometry_msgs::Pose &msg, double time_elapsed);
+  void getPrediction(usv_estiplan::OdometryNoCov &msg, double time_elapsed);
   Eigen::MatrixXd getCovarianceOfPrediction(double elapsed_time);
 };

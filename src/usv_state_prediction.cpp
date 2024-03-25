@@ -14,17 +14,17 @@
 
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/PoseArray.h"
-#include "usv_estiplan/OdometryArray.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/Vector3.h"
 #include "nav_msgs/Odometry.h"
+#include "usv_estiplan/OdometryArray.h"
 using namespace std;
 
 #define REAL 0
 #define IMAG 1
 
-geometry_msgs::Pose temp_msg;
+usv_estiplan::OdometryNoCov temp_msg;
 geometry_msgs::Pose model2_temp_msg;
 ros::Publisher wave_observer_model1;
 ros::Publisher wave_observer_model2;
@@ -49,10 +49,12 @@ void OdomCallback(const geometry_msgs::PoseStamped &msg) {
   _uav_frame_ = msg.header.frame_id;
   model1.updateModel(msg);
   model2.updateModel(msg);
+  usv_estiplan::OdometryNoCov temp_msg;
   model1.getPrediction(temp_msg, 0.00);
-  model2.getPrediction(temp_msg, 0.00);
   wave_observer_model1.publish(temp_msg);
-  wave_observer_model2.publish(temp_msg);
+  geometry_msgs::Pose temp_msg2;
+  model2.getPrediction(temp_msg2, 0.00);
+  wave_observer_model2.publish(temp_msg2);
 }
 
 int main(int argc, char **argv) {
@@ -88,7 +90,7 @@ int main(int argc, char **argv) {
     if (ros::isShuttingDown()) {
     }
     model2.iterateModel();
-    geometry_msgs::PoseArray pose_pred_msg;
+    usv_estiplan::OdometryArray pose_pred_msg;
     usv_estiplan::OdometryArray model2_pose_pred_msg;
     geometry_msgs::PoseWithCovarianceStamped msg_last_pose_with_covariance;
     if (!horizon_loaded) {
@@ -109,8 +111,8 @@ int main(int argc, char **argv) {
     if (horizon_loaded and prediction_timestep_loaded) {
 
       for (double i = 0.0; i < 4.0; i += 0.1) {
-      model1.getPrediction(temp_msg, i);
-      pose_pred_msg.poses.push_back(temp_msg);
+        model1.getPrediction(temp_msg, i);
+        pose_pred_msg.odom_array.push_back(temp_msg);
       }
       double total_horizon_time = _lmpc_prediction_timestep_ * _lmpc_horizon_;
       model2.returnPredictions(total_horizon_time, model2_pose_pred_msg,
